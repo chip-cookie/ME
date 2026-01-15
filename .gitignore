@@ -1,0 +1,58 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# Environment Variables
+.env
+.env.*
+!.env.example
+
+# Node/Frontend
+node_modules/
+dist/
+.DS_Store
+coverage/
+.next/
+build/
+
+# IDEs
+.vscode/
+.idea/
+
+# Custom
+# RAG/ (Integrated into main repo)
+
+# Data & Uploads
+data/
+!data/learning/styles/README.md
+uploads/
+
+# OS
+.DS_Store
+Thumbs.db
