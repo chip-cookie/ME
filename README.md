@@ -173,3 +173,43 @@ git push -u origin main
 ```
 
 > **Note**: 위 명령어들은 프로젝트 히스토리 관리를 위해 기록되었습니다. 실제 개발 시에는 `git add .`, `git commit`, `git push` 흐름을 주로 사용하게 됩니다.
+
+---
+
+## 🌐 하이브리드 배포 가이드 (Hybrid Deployment)
+
+이 프로젝트는 **Frontend(Vercel)**와 **Backend(Local/Ngrok)**가 분리된 하이브리드 구조로 배포됩니다.
+
+### 1. 배포 구조
+*   **Frontend**: Vercel을 통해 클라우드에 배포됩니다. (`front` 디렉토리 기준)
+*   **Backend**: 사용자의 로컬 컴퓨터에서 실행되며, **Ngrok**을 통해 외부와 연결됩니다.
+
+### 2. Ngrok 연결 방법
+백엔드 서버를 외부에 노출시키기 위해 다음 스크립트를 사용합니다.
+
+```bash
+# 1. 백엔드 서버 실행
+./start.sh
+
+# 2. Ngrok 터널 시작 (새 터미널)
+./start_tunnel.sh
+```
+*   `start_tunnel.sh` 실행 시 나오는 `https://...` 주소를 복사합니다.
+
+### 3. Vercel 설정
+1.  **Environment Variable**: Vercel 대시보드에서 `VITE_API_URL` 환경변수를 Ngrok 주소로 설정해야 합니다.
+2.  **Redeploy**: 주소가 바뀔 때마다 Vercel에서 재배포가 필요합니다. (무료 Ngrok은 주소가 매번 변경됨)
+
+### 4. 트러블슈팅: Vercel에서 Repository가 안 보일 때
+만약 Vercel에서 Import할 저장소가 보이지 않거나 `news`라는 이름의 옛날 저장소만 보인다면:
+1.  로컬 프로젝트가 Git으로 초기화되지 않았을 가능성이 큽니다.
+2.  아래 명령어로 강제 초기화 및 푸시를 수행하세요. (주의: 기존 `news` 저장소 내용은 덮어씌워짐)
+    ```bash
+    rm -rf .git
+    git init
+    git add .
+    git commit -m "Hybrid Setup Force Push"
+    git branch -M main
+    git remote add origin https://github.com/chip-cookie/news.git
+    git push -u origin main --force
+    ```
