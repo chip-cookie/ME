@@ -11,6 +11,9 @@ import Interview from "./pages/Interview";
 import History from "./pages/History";
 // import LeadForm from "./pages/LeadForm"; 
 import JDAnalysis from "./pages/JDAnalysis";
+import Blog from "./pages/Blog";
+import BlogPost from "./pages/BlogPost";
+import Login from "./pages/Login";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -22,6 +25,9 @@ function Router() {
       <Route path={"/interview"} component={Interview} />
       <Route path={"/history"} component={History} />
       <Route path={"/analysis"} component={JDAnalysis} /> {/* Added JD Analysis route */}
+      <Route path={"/login"} component={Login} />
+      <Route path={"/blog"} component={Blog} />
+      <Route path={"/blog/:slug"} component={BlogPost} />
       {/* <Route path={"/contact"} component={LeadForm} /> */}
       <Route path={"/404"} component={NotFound} />
       {/* Final fallback route */}

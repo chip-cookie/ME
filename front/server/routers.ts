@@ -15,6 +15,9 @@ import {
   getLeadInquiries,
   updateLeadInquiryStatus,
 } from "./db";
+import { getAllPosts, getPostBySlug, getFeaturedPosts } from "./content";
+import { registerUser, loginUser } from "./auth";
+import { ONE_YEAR_MS } from "@shared/const";
 
 export const appRouter = router({
   system: systemRouter,
@@ -23,10 +26,48 @@ export const appRouter = router({
     logout: publicProcedure.mutation(({ ctx }) => {
       const cookieOptions = getSessionCookieOptions(ctx.req);
       ctx.res.clearCookie(COOKIE_NAME, { ...cookieOptions, maxAge: -1 });
+      ctx.res.clearCookie("jasos_user_id", { ...cookieOptions, maxAge: -1 });
       return {
         success: true,
       } as const;
     }),
+    login: publicProcedure
+      .input(z.object({
+        username: z.string().min(1),
+        password: z.string().min(1),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await loginUser(input.username, input.password);
+        if (!result.success || !result.user) {
+          throw new Error(result.error || 'Login failed');
+        }
+        // Set session cookie
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie("jasos_user_id", String(result.user.id), {
+          ...cookieOptions,
+          maxAge: ONE_YEAR_MS,
+        });
+        return { success: true, user: result.user };
+      }),
+    register: publicProcedure
+      .input(z.object({
+        username: z.string().min(3).max(20),
+        password: z.string().min(6),
+        name: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const result = await registerUser(input.username, input.password, input.name);
+        if (!result.success || !result.user) {
+          throw new Error(result.error || 'Registration failed');
+        }
+        // Auto-login after registration
+        const cookieOptions = getSessionCookieOptions(ctx.req);
+        ctx.res.cookie("jasos_user_id", String(result.user.id), {
+          ...cookieOptions,
+          maxAge: ONE_YEAR_MS,
+        });
+        return { success: true, user: result.user };
+      }),
   }),
 
   // Services routes
@@ -73,6 +114,21 @@ export const appRouter = router({
     }),
     featured: publicProcedure.query(async () => {
       return await getFeaturedInsights();
+    }),
+  }),
+
+  // Content/Blog routes (MDX)
+  content: router({
+    list: publicProcedure.query(() => {
+      return getAllPosts();
+    }),
+    getBySlug: publicProcedure
+      .input(z.string())
+      .query(({ input }) => {
+        return getPostBySlug(input);
+      }),
+    featured: publicProcedure.query(() => {
+      return getFeaturedPosts();
     }),
   }),
 
