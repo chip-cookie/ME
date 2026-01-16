@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Calendar, User } from 'lucide-react';
-import { trpc } from '@/lib/trpc';
+import { trpc } from '@/lib/api';
 import ReactMarkdown from 'react-markdown';
 
 export default function BlogPost() {

@@ -1,6 +1,6 @@
 import { BarChart3, TrendingUp } from 'lucide-react';
 import Navbar from '@/components/Navbar';
-import { trpc } from '@/lib/trpc';
+import { trpc } from '@/lib/api';
 
 export default function Results() {
   const resultsQuery = trpc.clientResults.list.useQuery();

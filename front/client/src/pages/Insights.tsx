@@ -1,7 +1,7 @@
 import { Download, BookOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
-import { trpc } from '@/lib/trpc';
+import { trpc } from '@/lib/api';
 
 export default function Insights() {
   const insightsQuery = trpc.insights.list.useQuery();

@@ -1,7 +1,7 @@
 import { Filter, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
-import { trpc } from '@/lib/trpc';
+import { trpc } from '@/lib/api';
 import { useState } from 'react';
 
 export default function CaseStudies() {

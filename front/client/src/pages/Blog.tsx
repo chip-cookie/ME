@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Calendar, User, ArrowRight } from 'lucide-react';
-import { trpc } from '@/lib/trpc';
+import { trpc } from '@/lib/api';
 
 interface PostSummary {
     frontmatter: {

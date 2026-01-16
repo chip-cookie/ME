@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
-import { trpc } from '@/lib/trpc';
+import { trpc } from '@/lib/api';
 import { toast } from 'sonner';
 
 export default function LeadForm() {

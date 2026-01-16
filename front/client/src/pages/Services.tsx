@@ -1,7 +1,7 @@
 import { Briefcase, Zap, TrendingUp, Users, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
-import { trpc } from '@/lib/trpc';
+import { trpc } from '@/lib/api';
 
 export default function Services() {
   const servicesQuery = trpc.services.list.useQuery();
@@ -84,9 +84,8 @@ export default function Services() {
               return (
                 <div
                   key={service.id}
-                  className={`grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${
-                    index % 2 === 1 ? 'md:grid-cols-2 md:[&>*:first-child]:order-2' : ''
-                  }`}
+                  className={`grid grid-cols-1 md:grid-cols-2 gap-12 items-center ${index % 2 === 1 ? 'md:grid-cols-2 md:[&>*:first-child]:order-2' : ''
+                    }`}
                 >
                   {/* Content */}
                   <div className="fade-in-up">
