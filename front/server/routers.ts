@@ -1,4 +1,4 @@
-import { COOKIE_NAME } from "@shared/const";
+import { COOKIE_NAME } from "../shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
@@ -17,7 +17,7 @@ import {
 } from "./db";
 import { getAllPosts, getPostBySlug, getFeaturedPosts } from "./content";
 import { registerUser, loginUser } from "./auth";
-import { ONE_YEAR_MS } from "@shared/const";
+import { ONE_YEAR_MS } from "../shared/const";
 
 export const appRouter = router({
   system: systemRouter,
