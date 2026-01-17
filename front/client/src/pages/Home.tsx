@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { ArrowRight, PenTool, BookOpen, MessageSquare } from 'lucide-react';
+import { ArrowRight, PenTool, BookOpen, MessageSquare, Heart } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import ChatBot from '@/components/ChatBot';
@@ -29,9 +29,9 @@ export default function Home() {
                   자기소개서 작성하기 <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
-              <Link href="/learning">
-                <Button variant="outline" className="px-8 py-6 text-lg rounded-lg border-accent text-accent hover:bg-accent/10 w-full sm:w-auto">
-                  스타일 학습하기
+              <Link href="/interview">
+                <Button variant="outline" className="px-8 py-6 text-lg rounded-lg border-accent text-accent hover:bg-accent/10 w-full sm:w-auto flex items-center gap-2 justify-center">
+                  면접질문 예측 <ArrowRight className="w-5 h-5" />
                 </Button>
               </Link>
             </div>
@@ -42,7 +42,7 @@ export default function Home() {
       {/* Features Grid */}
       <section className="py-16 bg-card">
         <div className="container mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
             <FeatureCard
               icon={<BookOpen className="w-8 h-8 text-accent" />}
               title="스타일 학습"
@@ -60,6 +60,12 @@ export default function Home() {
               title="면접 질문 예측"
               description="자소서 내용을 분석하여 나올 수 있는 예상 면접 질문과 답변 가이드를 제공합니다."
               link="/interview"
+            />
+            <FeatureCard
+              icon={<Heart className="w-8 h-8 text-accent" />}
+              title="감정분석"
+              description="작성한 글의 감정을 분석하여 긍정/부정을 판단하고 더 나은 표현을 제안합니다."
+              link="/sentiment"
             />
           </div>
         </div>

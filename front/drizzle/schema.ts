@@ -1,4 +1,4 @@
-import { int, mysqlEnum, mysqlTable, text, timestamp, varchar } from "drizzle-orm/mysql-core";
+import { int, mysqlEnum, mysqlTable, text, timestamp, varchar, json } from "drizzle-orm/mysql-core";
 
 /**
  * Core user table backing auth flow.
@@ -200,3 +200,17 @@ export const interviewQuestions = mysqlTable("interview_questions", {
 
 export type InterviewQuestion = typeof interviewQuestions.$inferSelect;
 export type InsertInterviewQuestion = typeof interviewQuestions.$inferInsert;
+
+/**
+ * Experience Logs table - Stores user experiences and sentiment/personality analysis
+ */
+export const experienceLogs = mysqlTable("experience_logs", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  content: text("content").notNull(),
+  analysisResult: json("analysis_result"), // JSON: { star_summary, personality }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type ExperienceLog = typeof experienceLogs.$inferSelect;
+export type InsertExperienceLog = typeof experienceLogs.$inferInsert;

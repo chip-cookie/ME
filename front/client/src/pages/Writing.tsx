@@ -17,12 +17,22 @@ import { trpc } from '@/lib/api';
 export default function Writing() {
     const [prompt, setPrompt] = useState('');
     const [selectedStyleId, setSelectedStyleId] = useState<number | undefined>();
+    const [selectedExperienceId, setSelectedExperienceId] = useState<number | undefined>();
     const [result, setResult] = useState('');
     const [itemType, setItemType] = useState('자유양식');
     const [targetCharCount, setTargetCharCount] = useState<number>(1000);
 
+    // JD Analysis Context
+    const [jdContext, setJdContext] = useState<{ keywords: string[], summary: string } | null>(null);
+    const [isJdDialogOpen, setIsJdDialogOpen] = useState(false);
+    const [analysisIdInput, setAnalysisIdInput] = useState("");
+
     // tRPC hooks
     const { data: styles = [] } = trpc.writingLearning.listStyles.useQuery(undefined, {
+        retry: false,
+        enabled: true,
+    });
+    const { data: experiences = [] } = trpc.experience.list.useQuery(undefined, {
         retry: false,
         enabled: true,
     });
@@ -65,10 +75,7 @@ export default function Writing() {
         calculateCounts(result);
     }, [result]);
 
-    // JD Analysis Context
-    const [jdContext, setJdContext] = useState<{ keywords: string[], summary: string } | null>(null);
-    const [isJdDialogOpen, setIsJdDialogOpen] = useState(false);
-    const [analysisIdInput, setAnalysisIdInput] = useState("");
+
 
     const fetchJdAnalysis = async () => {
         if (!analysisIdInput) return;
@@ -111,6 +118,7 @@ export default function Writing() {
                 styleId: selectedStyleId,
                 itemType,
                 targetCharCount,
+                experienceId: selectedExperienceId,
                 context: {
                     jd_keywords: jdContext?.keywords,
                     jd_summary: jdContext?.summary,
@@ -222,6 +230,37 @@ export default function Writing() {
                                         <option key={s.id} value={s.id}>{s.name}</option>
                                     ))}
                                 </select>
+                            </div>
+
+                            {/* Experience Selection */}
+                            <div>
+                                <label className="text-sm font-medium mb-1 block text-muted-foreground">경험 소재 선택 (선택사항)</label>
+                                <select
+                                    className="w-full p-2 rounded-md border border-gray-300 bg-background"
+                                    value={selectedExperienceId || ''}
+                                    onChange={(e) => setSelectedExperienceId(e.target.value ? parseInt(e.target.value) : undefined)}
+                                >
+                                    <option value="">선택 안 함 (직접 입력)</option>
+                                    {experiences.map((exp: any) => {
+                                        const analysis = typeof exp.analysisResult === 'string'
+                                            ? JSON.parse(exp.analysisResult)
+                                            : exp.analysisResult;
+                                        const label = analysis?.star_summary?.T
+                                            ? `${analysis.star_summary.T.substring(0, 30)}...`
+                                            : `경험 #${exp.id}`;
+
+                                        return (
+                                            <option key={exp.id} value={exp.id}>
+                                                {label}
+                                            </option>
+                                        );
+                                    })}
+                                </select>
+                                {selectedExperienceId && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        선택한 경험의 분석 내용(STAR 기법)이 프롬프트에 자동으로 포함됩니다.
+                                    </p>
+                                )}
                             </div>
 
                             <label className="font-medium text-muted-foreground">어떤 자소서를 쓰고 싶으신가요?</label>

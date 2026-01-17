@@ -140,6 +140,7 @@ export async function generateCoverLetter(params: {
     targetCharCount?: number;
     jdKeywords?: string[];
     jdSummary?: string;
+    experienceContext?: any; // STAR summary
 }) {
     let systemPrompt = "당신은 자기소개서 작성 전문가입니다.";
 
@@ -149,6 +150,21 @@ export async function generateCoverLetter(params: {
         // Add key patterns for better style matching
         if (params.style.key_patterns && params.style.key_patterns.length > 0) {
             systemPrompt += `\n- 특징적 표현: ${params.style.key_patterns.slice(0, 5).join(', ')}`;
+        }
+    }
+
+    // Add Experience Context (STAR Summary)
+    if (params.experienceContext && params.experienceContext.star_summary) {
+        const star = params.experienceContext.star_summary;
+        systemPrompt += `\n\n**사용자의 경험 소재 (STAR 기법 분석):**
+이 경험 내용을 바탕으로 질문에 답변을 작성하세요.
+- Situation (상황): ${star.S}
+- Task (문제/과제): ${star.T}
+- Action (행동): ${star.A}
+- Result (결과): ${star.R}`;
+
+        if (params.experienceContext.personality) {
+            systemPrompt += `\n- 성향/강점: ${params.experienceContext.personality.keywords?.join(', ')}`;
         }
     }
 
@@ -283,4 +299,68 @@ export async function generateInterviewQuestionsWithConsulting(params: {
 
     const parsed = JSON.parse(result.choices[0].message.content as string);
     return parsed.questions;
+}
+
+/**
+ * Analyze experience for sentiment, STAR, and personality
+ */
+export async function analyzeExperience(text: string) {
+    const messages: Message[] = [
+        {
+            role: "system",
+            content: "당신은 자기소개서 소재 발굴 및 경험 분석 전문가입니다. 사용자의 경험을 듣고 STAR 기법(Situation, Task, Action, Result)으로 구조화하고, 해당 경험에서 드러나는 지원자의 성향과 강점을 분석합니다. 특히 사용자의 '감정'에 집중하여 분석을 수행하세요."
+        },
+        {
+            role: "user",
+            content: `다음 경험 내용을 분석하여 STAR 구조로 요약하고, 작성자의 성향(Personality)을 분석해주세요. 이때 감정(Sentiment) 분석을 통해 당시 느꼈을 기분이나 태도를 함께 고려해주세요:\n\n${text}`
+        }
+    ];
+
+    const result = await invokeLLM({
+        messages,
+        outputSchema: {
+            name: "experience_analysis",
+            schema: {
+                type: "object",
+                properties: {
+                    star_summary: {
+                        type: "object",
+                        properties: {
+                            S: { type: "string", description: "Situation (상황)" },
+                            T: { type: "string", description: "Task (문제/과제)" },
+                            A: { type: "string", description: "Action (행동)" },
+                            R: { type: "string", description: "Result (결과)" }
+                        },
+                        required: ["S", "T", "A", "R"]
+                    },
+                    personality: {
+                        type: "object",
+                        properties: {
+                            keywords: {
+                                type: "array",
+                                items: { type: "string" },
+                                description: "성향 키워드 (해시태그)"
+                            },
+                            score: {
+                                type: "object",
+                                properties: {
+                                    analytical: { type: "number", description: "분석적 사고 (0-100)" },
+                                    creativity: { type: "number", description: "창의성 (0-100)" },
+                                    leadership: { type: "number", description: "리더십 (0-100)" },
+                                    empathy: { type: "number", description: "공감 능력 (0-100)" },
+                                    persistence: { type: "number", description: "끈기/집요함 (0-100)" }
+                                },
+                                required: ["analytical", "creativity", "leadership", "empathy", "persistence"]
+                            },
+                            comment: { type: "string", description: "성향 분석 코멘트" }
+                        },
+                        required: ["keywords", "score", "comment"]
+                    }
+                },
+                required: ["star_summary", "personality"]
+            }
+        }
+    });
+
+    return JSON.parse(result.choices[0].message.content as string);
 }

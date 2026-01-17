@@ -13,6 +13,7 @@ import {
   interviewStyleProfiles,
   writingHistory,
   interviewQuestions,
+  experienceLogs,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -42,6 +43,7 @@ export {
   interviewStyleProfiles,
   writingHistory,
   interviewQuestions,
+  experienceLogs,
 } from "../drizzle/schema";
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -333,4 +335,27 @@ export async function getInterviewQuestionsByWritingId(writingId: number) {
   const db = await getDb();
   if (!db) return [];
   return await db.select().from(interviewQuestions).where(eq(interviewQuestions.writingId, writingId)).orderBy(interviewQuestions.createdAt);
+}
+
+// Experience Logs
+export async function getExperienceLogsByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(experienceLogs).where(eq(experienceLogs.userId, userId)).orderBy(experienceLogs.createdAt);
+}
+
+export async function createExperienceLog(data: {
+  userId: number;
+  content: string;
+  analysisResult: string; // JSON string
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not initialized");
+  return await db.insert(experienceLogs).values(data);
+}
+
+export async function deleteExperienceLog(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not initialized");
+  return await db.delete(experienceLogs).where(eq(experienceLogs.id, id));
 }

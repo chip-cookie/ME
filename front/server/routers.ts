@@ -271,19 +271,33 @@ export const appRouter = router({
         styleId: z.number().optional(),
         itemType: z.string().optional(),
         targetCharCount: z.number().optional(),
+        experienceId: z.number().optional(), // New input
         context: z.object({
           jd_keywords: z.array(z.string()).optional(),
           jd_summary: z.string().optional(),
         }).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const { getWritingStyleProfileById, createWritingHistory } = await import("./db");
+        const { getWritingStyleProfileById, createWritingHistory, getExperienceLogsByUserId } = await import("./db");
         const { generateCoverLetter } = await import("./llm-helpers");
 
         // Get style info if provided
         let styleInfo = null;
         if (input.styleId) {
           styleInfo = await getWritingStyleProfileById(input.styleId);
+        }
+
+        // Get experience info if provided
+        let experienceContext = null;
+        if (input.experienceId) {
+          const userId = ctx.user?.id || 0;
+          const logs = await getExperienceLogsByUserId(userId);
+          const log = logs.find(l => l.id === input.experienceId);
+          if (log && log.analysisResult) {
+            experienceContext = typeof log.analysisResult === 'string'
+              ? JSON.parse(log.analysisResult)
+              : log.analysisResult;
+          }
         }
 
         // Generate cover letter with character count constraint and RAG
@@ -295,6 +309,7 @@ export const appRouter = router({
           targetCharCount: input.targetCharCount,
           jdKeywords: input.context?.jd_keywords,
           jdSummary: input.context?.jd_summary,
+          experienceContext, // Pass STAR summary
         });
 
         // Calculate actual character count (excluding spaces)
@@ -408,6 +423,49 @@ export const appRouter = router({
       .query(async ({ input }) => {
         const { getInterviewQuestionsByWritingId } = await import("./db");
         return await getInterviewQuestionsByWritingId(input);
+      }),
+  }),
+
+  // Experience Analysis - Sentiment & Personality Analysis
+  experience: router({
+    analyze: publicProcedure
+      .input(z.object({
+        text: z.string().min(10),
+      }))
+      .mutation(async ({ input }) => {
+        const { analyzeExperience } = await import("./llm-helpers");
+        const analysis = await analyzeExperience(input.text);
+        return analysis;
+      }),
+
+    create: publicProcedure
+      .input(z.object({
+        content: z.string().min(1),
+        analysisResult: z.string(), // JSON string
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createExperienceLog } = await import("./db");
+        const userId = ctx.user?.id || 0;
+        await createExperienceLog({
+          userId,
+          content: input.content,
+          analysisResult: input.analysisResult,
+        });
+        return { success: true };
+      }),
+
+    list: publicProcedure.query(async ({ ctx }) => {
+      const { getExperienceLogsByUserId } = await import("./db");
+      const userId = ctx.user?.id || 0;
+      return await getExperienceLogsByUserId(userId);
+    }),
+
+    delete: publicProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        const { deleteExperienceLog } = await import("./db");
+        await deleteExperienceLog(input);
+        return { success: true };
       }),
   }),
 });
