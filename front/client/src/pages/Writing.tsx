@@ -158,15 +158,42 @@ export default function Writing() {
                                 <label className="text-sm font-medium mb-1 block text-muted-foreground">항목 유형</label>
                                 <select
                                     className="w-full p-2 rounded-md border border-gray-300 bg-background"
-                                    value={itemType}
-                                    onChange={(e) => setItemType(e.target.value)}
+                                    value={itemType.startsWith('custom:') ? 'custom' : itemType}
+                                    onChange={(e) => {
+                                        if (e.target.value === 'custom') {
+                                            setItemType('custom:');
+                                        } else {
+                                            setItemType(e.target.value);
+                                        }
+                                    }}
                                 >
                                     <option value="지원동기">지원동기</option>
                                     <option value="입사후포부">입사 후 포부</option>
                                     <option value="성장과정">성장과정</option>
+                                    <option value="성격의장단점">성격의 장단점</option>
+                                    <option value="직무역량">직무 역량/경험</option>
                                     <option value="자유양식">자유양식</option>
+                                    <option value="custom">📝 직접입력</option>
                                 </select>
                             </div>
+
+                            {/* Custom Item Type Input */}
+                            {itemType.startsWith('custom:') && (
+                                <div className="animate-in slide-in-from-top-2">
+                                    <label className="text-sm font-medium mb-1 block text-muted-foreground">
+                                        실제 자소서 항목 (질문)
+                                    </label>
+                                    <Textarea
+                                        className="min-h-[80px] resize-none"
+                                        placeholder="예: 본인이 겪은 가장 큰 도전과 그 경험을 통해 배운 점을 기술해 주세요. (500자 이내)"
+                                        value={itemType.replace('custom:', '')}
+                                        onChange={(e) => setItemType(`custom:${e.target.value}`)}
+                                    />
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        실제 지원하는 회사의 자소서 항목을 그대로 입력하면 더 정확한 답변이 생성됩니다.
+                                    </p>
+                                </div>
+                            )}
 
                             {/* Target Character Count */}
                             <div>

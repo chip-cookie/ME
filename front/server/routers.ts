@@ -223,12 +223,13 @@ export const appRouter = router({
 
   // Interview Learning - Interview answer style management (separate DB)
   interviewLearning: router({
-    listStyles: protectedProcedure.query(async ({ ctx }) => {
+    listStyles: publicProcedure.query(async ({ ctx }) => {
       const { getInterviewStyleProfilesByUserId } = await import("./db");
-      return await getInterviewStyleProfilesByUserId(ctx.user!.id);
+      const userId = ctx.user?.id || 0;
+      return await getInterviewStyleProfilesByUserId(userId);
     }),
 
-    createStyle: protectedProcedure
+    createStyle: publicProcedure
       .input(z.object({
         name: z.string().min(1),
         trainingText: z.string().min(10),
@@ -240,9 +241,10 @@ export const appRouter = router({
 
         // Analyze interview style using LLM
         const characteristics = await analyzeInterviewStyle(input.trainingText);
+        const userId = ctx.user?.id || 0;
 
         const result = await createInterviewStyleProfile({
-          userId: ctx.user!.id,
+          userId,
           name: input.name,
           description: input.description,
           trainingText: input.trainingText,
@@ -252,7 +254,7 @@ export const appRouter = router({
         return { success: true, id: (result as any).insertId };
       }),
 
-    deleteStyle: protectedProcedure
+    deleteStyle: publicProcedure
       .input(z.number())
       .mutation(async ({ input }) => {
         const { deleteInterviewStyleProfile } = await import("./db");
@@ -263,7 +265,7 @@ export const appRouter = router({
 
   // Writing - Cover letter generation with character count constraints
   writing: router({
-    generate: protectedProcedure
+    generate: publicProcedure
       .input(z.object({
         prompt: z.string().min(1),
         styleId: z.number().optional(),
@@ -288,7 +290,7 @@ export const appRouter = router({
         const result = await generateCoverLetter({
           prompt: input.prompt,
           style: styleInfo?.characteristics ? JSON.parse(styleInfo.characteristics) : null,
-          trainingText: styleInfo?.trainingText || undefined, // Pass training text for RAG
+          trainingText: styleInfo?.trainingText || undefined,
           itemType: input.itemType,
           targetCharCount: input.targetCharCount,
           jdKeywords: input.context?.jd_keywords,
@@ -297,10 +299,11 @@ export const appRouter = router({
 
         // Calculate actual character count (excluding spaces)
         const actualCharCount = result.text.replace(/\s/g, '').length;
+        const userId = ctx.user?.id || 0;
 
         // Save to history
         const history = await createWritingHistory({
-          userId: ctx.user!.id,
+          userId,
           styleId: input.styleId,
           itemType: input.itemType,
           prompt: input.prompt,
@@ -315,17 +318,18 @@ export const appRouter = router({
           generatedText: result.text,
           actualCharCount,
           targetCharCount: input.targetCharCount,
-          styleSimilarity: result.styleSimilarity, // Top-k based similarity score
+          styleSimilarity: result.styleSimilarity,
           historyId: (history as any).insertId
         };
       }),
 
-    getHistory: protectedProcedure.query(async ({ ctx }) => {
+    getHistory: publicProcedure.query(async ({ ctx }) => {
       const { getWritingHistoryByUserId } = await import("./db");
-      return await getWritingHistoryByUserId(ctx.user!.id);
+      const userId = ctx.user?.id || 0;
+      return await getWritingHistoryByUserId(userId);
     }),
 
-    getById: protectedProcedure
+    getById: publicProcedure
       .input(z.number())
       .query(async ({ input }) => {
         const { getWritingHistoryById } = await import("./db");
@@ -335,7 +339,7 @@ export const appRouter = router({
 
   // Interview - Question generation with consulting (answer strategy and tips)
   interview: router({
-    generateQuestions: protectedProcedure
+    generateQuestions: publicProcedure
       .input(z.object({
         writingId: z.number().optional(),
         coverLetterText: z.string().optional(),
@@ -374,9 +378,11 @@ export const appRouter = router({
           questionCount: input.questionCount,
         });
 
+        const userId = ctx.user?.id || 0;
+
         // Save to database
         const questionsToSave = questions.map((q: any) => ({
-          userId: ctx.user!.id,
+          userId,
           interviewStyleId: input.interviewStyleId,
           writingId: input.writingId,
           question: q.question,
@@ -391,12 +397,13 @@ export const appRouter = router({
         return { questions };
       }),
 
-    getQuestions: protectedProcedure.query(async ({ ctx }) => {
+    getQuestions: publicProcedure.query(async ({ ctx }) => {
       const { getInterviewQuestionsByUserId } = await import("./db");
-      return await getInterviewQuestionsByUserId(ctx.user!.id);
+      const userId = ctx.user?.id || 0;
+      return await getInterviewQuestionsByUserId(userId);
     }),
 
-    getByWritingId: protectedProcedure
+    getByWritingId: publicProcedure
       .input(z.number())
       .query(async ({ input }) => {
         const { getInterviewQuestionsByWritingId } = await import("./db");

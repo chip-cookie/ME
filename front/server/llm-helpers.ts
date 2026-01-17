@@ -178,9 +178,18 @@ export async function generateCoverLetter(params: {
         systemPrompt += `\n\n**중요**: 생성할 자기소개서는 공백을 제외하고 정확히 ${params.targetCharCount}자 이내로 작성해야 합니다. 이 제한을 반드시 지켜주세요.`;
     }
 
+
     let userPrompt = params.prompt;
-    if (params.itemType && params.itemType !== "자유양식") {
-        userPrompt = `[${params.itemType}]\n\n${params.prompt}`;
+    if (params.itemType) {
+        // Handle custom item type (prefixed with 'custom:')
+        if (params.itemType.startsWith('custom:')) {
+            const customQuestion = params.itemType.replace('custom:', '').trim();
+            if (customQuestion) {
+                userPrompt = `[자소서 항목 질문]\n${customQuestion}\n\n[추가 요구사항/내 경험]\n${params.prompt}`;
+            }
+        } else if (params.itemType !== "자유양식") {
+            userPrompt = `[${params.itemType}]\n\n${params.prompt}`;
+        }
     }
 
     const messages: Message[] = [
