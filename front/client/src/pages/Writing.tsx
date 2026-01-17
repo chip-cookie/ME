@@ -141,8 +141,8 @@ export default function Writing() {
     return (
         <div className="min-h-screen bg-background">
             <Navbar />
-            <div className="container mx-auto px-4 py-24 h-[calc(100vh-6rem)]">
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
+            <div className="container mx-auto px-4 py-24 pb-12">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
                     {/* Left: Input */}
                     <div className="flex flex-col gap-4">
                         <div className="flex items-center justify-between">
@@ -151,7 +151,7 @@ export default function Writing() {
                                 자기소개서 작성
                             </h1>
                         </div>
-                        <div className="flex-1 bg-card rounded-lg border border-border p-6 shadow-sm flex flex-col gap-4">
+                        <div className="bg-card rounded-lg border border-border p-6 shadow-sm flex flex-col gap-4">
 
                             {/* Item Type */}
                             <div>
@@ -278,13 +278,13 @@ export default function Writing() {
                     {/* Right: Output */}
                     <div className="flex flex-col gap-4">
                         <h2 className="text-2xl font-bold text-gray-400">결과물</h2>
-                        <div className="flex-1 bg-white rounded-lg border border-border p-8 shadow-sm overflow-auto whitespace-pre-wrap">
+                        <div className="bg-white rounded-lg border border-border p-8 shadow-sm max-h-[600px] overflow-y-auto whitespace-pre-wrap">
                             {result ? (
                                 <div className="prose max-w-none">
                                     {result}
                                 </div>
                             ) : (
-                                <div className="h-full flex items-center justify-center text-muted-foreground text-center">
+                                <div className="h-64 flex items-center justify-center text-muted-foreground text-center">
                                     <p>왼쪽에서 내용을 입력하고<br />생성 버튼을 눌러주세요.</p>
                                 </div>
                             )}
