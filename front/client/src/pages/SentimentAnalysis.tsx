@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Save, Trash2, Heart, Brain, Star } from 'lucide-react';
+import { Loader2, Save, Trash2, Heart, Brain, Star, ThumbsUp, ThumbsDown } from 'lucide-react';
 import {
     Card,
     CardContent,
@@ -228,6 +228,32 @@ export default function SentimentAnalysis() {
                                         <div className="bg-muted/50 p-4 rounded-lg text-sm leading-relaxed border border-border">
                                             💡 {result.personality.comment}
                                         </div>
+
+                                        {/* Strengths & Weaknesses */}
+                                        {(result.personality.strengths || result.personality.weaknesses) && (
+                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
+                                                {result.personality.strengths && (
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-semibold text-blue-600 flex items-center gap-2">
+                                                            <ThumbsUp className="w-4 h-4" /> 장점
+                                                        </h4>
+                                                        <p className="text-sm text-gray-700 bg-blue-50 p-3 rounded-md border border-blue-100">
+                                                            {result.personality.strengths}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                                {result.personality.weaknesses && (
+                                                    <div className="space-y-2">
+                                                        <h4 className="font-semibold text-red-600 flex items-center gap-2">
+                                                            <ThumbsDown className="w-4 h-4" /> 단점/보완점
+                                                        </h4>
+                                                        <p className="text-sm text-gray-700 bg-red-50 p-3 rounded-md border border-red-100">
+                                                            {result.personality.weaknesses}
+                                                        </p>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
                                     </CardContent>
                                 </Card>
                             </div>

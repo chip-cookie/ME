@@ -164,7 +164,13 @@ export async function generateCoverLetter(params: {
 - Result (결과): ${star.R}`;
 
         if (params.experienceContext.personality) {
-            systemPrompt += `\n- 성향/강점: ${params.experienceContext.personality.keywords?.join(', ')}`;
+            systemPrompt += `\n- 성향/강점 키워드: ${params.experienceContext.personality.keywords?.join(', ')}`;
+            if (params.experienceContext.personality.strengths) {
+                systemPrompt += `\n- 성격의 장점: ${params.experienceContext.personality.strengths}`;
+            }
+            if (params.experienceContext.personality.weaknesses) {
+                systemPrompt += `\n- 성격의 단점/보완점: ${params.experienceContext.personality.weaknesses}`;
+            }
         }
     }
 
@@ -352,9 +358,17 @@ export async function analyzeExperience(text: string) {
                                 },
                                 required: ["analytical", "creativity", "leadership", "empathy", "persistence"]
                             },
-                            comment: { type: "string", description: "성향 분석 코멘트" }
+                            comment: { type: "string", description: "성향 분석 코멘트" },
+                            strengths: {
+                                type: "string",
+                                description: "해당 경험에서 드러난 성격의 장점 (구체적으로)"
+                            },
+                            weaknesses: {
+                                type: "string",
+                                description: "해당 경험에서 드러난 성격의 단점 또는 보완점 (구체적으로)"
+                            }
                         },
-                        required: ["keywords", "score", "comment"]
+                        required: ["keywords", "score", "comment", "strengths", "weaknesses"]
                     }
                 },
                 required: ["star_summary", "personality"]
