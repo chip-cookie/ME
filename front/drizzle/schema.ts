@@ -126,3 +126,77 @@ export const leadInquiries = mysqlTable("lead_inquiries", {
 
 export type LeadInquiry = typeof leadInquiries.$inferSelect;
 export type InsertLeadInquiry = typeof leadInquiries.$inferInsert;
+
+/**
+ * Writing Style Profiles table - Stores learned writing styles for cover letters
+ */
+export const writingStyleProfiles = mysqlTable("writing_style_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  trainingText: text("trainingText"),
+  characteristics: text("characteristics"), // JSON
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WritingStyleProfile = typeof writingStyleProfiles.$inferSelect;
+export type InsertWritingStyleProfile = typeof writingStyleProfiles.$inferInsert;
+
+/**
+ * Interview Style Profiles table - Stores learned interview answer styles (separate DB)
+ */
+export const interviewStyleProfiles = mysqlTable("interview_style_profiles", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  name: varchar("name", { length: 255 }).notNull(),
+  description: text("description"),
+  trainingText: text("trainingText"),
+  characteristics: text("characteristics"), // JSON
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type InterviewStyleProfile = typeof interviewStyleProfiles.$inferSelect;
+export type InsertInterviewStyleProfile = typeof interviewStyleProfiles.$inferInsert;
+
+/**
+ * Writing History table - Stores generated cover letters with character count tracking
+ */
+export const writingHistory = mysqlTable("writing_history", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  styleId: int("styleId"),
+  itemType: varchar("itemType", { length: 100 }),
+  prompt: text("prompt").notNull(),
+  targetCharCount: int("targetCharCount"),
+  generatedText: text("generatedText").notNull(),
+  actualCharCount: int("actualCharCount"),
+  jdKeywords: text("jdKeywords"), // JSON array
+  jdSummary: text("jdSummary"),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type WritingHistory = typeof writingHistory.$inferSelect;
+export type InsertWritingHistory = typeof writingHistory.$inferInsert;
+
+/**
+ * Interview Questions table - Stores generated interview questions with consulting info
+ */
+export const interviewQuestions = mysqlTable("interview_questions", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  interviewStyleId: int("interviewStyleId"),
+  writingId: int("writingId"),
+  question: text("question").notNull(),
+  suggestedAnswer: text("suggestedAnswer"),
+  answerStrategy: text("answerStrategy"),
+  category: varchar("category", { length: 100 }),
+  difficulty: varchar("difficulty", { length: 20 }),
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type InterviewQuestion = typeof interviewQuestions.$inferSelect;
+export type InsertInterviewQuestion = typeof interviewQuestions.$inferInsert;

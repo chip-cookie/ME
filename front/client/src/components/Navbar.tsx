@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Menu, X } from 'lucide-react';
-import { Link } from 'wouter';
+import { useLocation } from 'wouter';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/_core/hooks/useAuth';
 import { getLoginUrl } from '@/const';
@@ -8,6 +8,7 @@ import { getLoginUrl } from '@/const';
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
   const { isAuthenticated, logout } = useAuth();
+  const [, setLocation] = useLocation();
 
   const toggleMenu = () => setIsOpen(!isOpen);
 
@@ -17,6 +18,11 @@ export default function Navbar() {
     { label: '면접 준비', href: '/interview' },
     { label: '히스토리', href: '/history' },
   ];
+
+  const navigate = (href: string) => {
+    setLocation(href);
+    setIsOpen(false);
+  };
 
   return (
     <nav className="fixed top-0 w-full bg-white/95 backdrop-blur-md z-50 border-b border-gray-200">
@@ -32,14 +38,13 @@ export default function Navbar() {
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center space-x-8">
             {navItems.map((item) => (
-              <Link
+              <button
                 key={item.label}
-                href={item.href}
+                onClick={() => navigate(item.href)}
+                className="text-foreground hover:text-accent transition-colors duration-200 font-medium bg-transparent border-none cursor-pointer"
               >
-                <a className="text-foreground hover:text-accent transition-colors duration-200 font-medium">
-                  {item.label}
-                </a>
-              </Link>
+                {item.label}
+              </button>
             ))}
           </div>
 
@@ -63,13 +68,12 @@ export default function Navbar() {
                     Sign In
                   </Button>
                 </a>
-                <Link href="/writing">
-                  <a className="cursor-pointer">
-                    <Button className="bg-accent hover:bg-accent/90 text-white">
-                      Get Started
-                    </Button>
-                  </a>
-                </Link>
+                <Button
+                  onClick={() => navigate('/writing')}
+                  className="bg-accent hover:bg-accent/90 text-white"
+                >
+                  Get Started
+                </Button>
               </>
             )}
           </div>
@@ -93,17 +97,13 @@ export default function Navbar() {
         {isOpen && (
           <div className="md:hidden pb-4 space-y-2">
             {navItems.map((item) => (
-              <Link
+              <button
                 key={item.label}
-                href={item.href}
+                onClick={() => navigate(item.href)}
+                className="block w-full text-left px-3 py-2 rounded-md text-foreground hover:bg-gray-100 transition-colors bg-transparent border-none cursor-pointer"
               >
-                <a
-                  className="block px-3 py-2 rounded-md text-foreground hover:bg-gray-100 transition-colors"
-                  onClick={() => setIsOpen(false)}
-                >
-                  {item.label}
-                </a>
-              </Link>
+                {item.label}
+              </button>
             ))}
             <div className="pt-2 space-y-2">
               {isAuthenticated ? (
@@ -127,13 +127,12 @@ export default function Navbar() {
                       Sign In
                     </Button>
                   </a>
-                  <Link href="/writing">
-                    <a className="block">
-                      <Button className="w-full bg-accent hover:bg-accent/90 text-white">
-                        Get Started
-                      </Button>
-                    </a>
-                  </Link>
+                  <Button
+                    onClick={() => navigate('/writing')}
+                    className="w-full bg-accent hover:bg-accent/90 text-white"
+                  >
+                    Get Started
+                  </Button>
                 </>
               )}
             </div>

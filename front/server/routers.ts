@@ -178,6 +178,231 @@ export const appRouter = router({
         return { success: true };
       }),
   }),
+
+  // Writing Learning - Cover letter writing style management
+  writingLearning: router({
+    listStyles: publicProcedure.query(async ({ ctx }) => {
+      const { getWritingStyleProfilesByUserId } = await import("./db");
+      const userId = ctx.user?.id || 0;
+      return await getWritingStyleProfilesByUserId(userId);
+    }),
+
+    createStyle: publicProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        trainingText: z.string().min(10),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createWritingStyleProfile } = await import("./db");
+        const { analyzeWritingStyle } = await import("./llm-helpers");
+
+        // Analyze style using LLM
+        const characteristics = await analyzeWritingStyle(input.trainingText);
+        const userId = ctx.user?.id || 0;
+
+        const result = await createWritingStyleProfile({
+          userId,
+          name: input.name,
+          description: input.description,
+          trainingText: input.trainingText,
+          characteristics: JSON.stringify(characteristics),
+        });
+
+        return { success: true, id: (result as any).insertId };
+      }),
+
+    deleteStyle: publicProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        const { deleteWritingStyleProfile } = await import("./db");
+        await deleteWritingStyleProfile(input);
+        return { success: true };
+      }),
+  }),
+
+  // Interview Learning - Interview answer style management (separate DB)
+  interviewLearning: router({
+    listStyles: protectedProcedure.query(async ({ ctx }) => {
+      const { getInterviewStyleProfilesByUserId } = await import("./db");
+      return await getInterviewStyleProfilesByUserId(ctx.user!.id);
+    }),
+
+    createStyle: protectedProcedure
+      .input(z.object({
+        name: z.string().min(1),
+        trainingText: z.string().min(10),
+        description: z.string().optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createInterviewStyleProfile } = await import("./db");
+        const { analyzeInterviewStyle } = await import("./llm-helpers");
+
+        // Analyze interview style using LLM
+        const characteristics = await analyzeInterviewStyle(input.trainingText);
+
+        const result = await createInterviewStyleProfile({
+          userId: ctx.user!.id,
+          name: input.name,
+          description: input.description,
+          trainingText: input.trainingText,
+          characteristics: JSON.stringify(characteristics),
+        });
+
+        return { success: true, id: (result as any).insertId };
+      }),
+
+    deleteStyle: protectedProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        const { deleteInterviewStyleProfile } = await import("./db");
+        await deleteInterviewStyleProfile(input);
+        return { success: true };
+      }),
+  }),
+
+  // Writing - Cover letter generation with character count constraints
+  writing: router({
+    generate: protectedProcedure
+      .input(z.object({
+        prompt: z.string().min(1),
+        styleId: z.number().optional(),
+        itemType: z.string().optional(),
+        targetCharCount: z.number().optional(),
+        context: z.object({
+          jd_keywords: z.array(z.string()).optional(),
+          jd_summary: z.string().optional(),
+        }).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { getWritingStyleProfileById, createWritingHistory } = await import("./db");
+        const { generateCoverLetter } = await import("./llm-helpers");
+
+        // Get style info if provided
+        let styleInfo = null;
+        if (input.styleId) {
+          styleInfo = await getWritingStyleProfileById(input.styleId);
+        }
+
+        // Generate cover letter with character count constraint and RAG
+        const result = await generateCoverLetter({
+          prompt: input.prompt,
+          style: styleInfo?.characteristics ? JSON.parse(styleInfo.characteristics) : null,
+          trainingText: styleInfo?.trainingText || undefined, // Pass training text for RAG
+          itemType: input.itemType,
+          targetCharCount: input.targetCharCount,
+          jdKeywords: input.context?.jd_keywords,
+          jdSummary: input.context?.jd_summary,
+        });
+
+        // Calculate actual character count (excluding spaces)
+        const actualCharCount = result.text.replace(/\s/g, '').length;
+
+        // Save to history
+        const history = await createWritingHistory({
+          userId: ctx.user!.id,
+          styleId: input.styleId,
+          itemType: input.itemType,
+          prompt: input.prompt,
+          targetCharCount: input.targetCharCount,
+          generatedText: result.text,
+          actualCharCount,
+          jdKeywords: input.context?.jd_keywords ? JSON.stringify(input.context.jd_keywords) : null,
+          jdSummary: input.context?.jd_summary || null,
+        });
+
+        return {
+          generatedText: result.text,
+          actualCharCount,
+          targetCharCount: input.targetCharCount,
+          styleSimilarity: result.styleSimilarity, // Top-k based similarity score
+          historyId: (history as any).insertId
+        };
+      }),
+
+    getHistory: protectedProcedure.query(async ({ ctx }) => {
+      const { getWritingHistoryByUserId } = await import("./db");
+      return await getWritingHistoryByUserId(ctx.user!.id);
+    }),
+
+    getById: protectedProcedure
+      .input(z.number())
+      .query(async ({ input }) => {
+        const { getWritingHistoryById } = await import("./db");
+        return await getWritingHistoryById(input);
+      }),
+  }),
+
+  // Interview - Question generation with consulting (answer strategy and tips)
+  interview: router({
+    generateQuestions: protectedProcedure
+      .input(z.object({
+        writingId: z.number().optional(),
+        coverLetterText: z.string().optional(),
+        interviewStyleId: z.number().optional(),
+        questionCount: z.number().default(5),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const {
+          getWritingHistoryById,
+          getInterviewStyleProfileById,
+          createInterviewQuestions
+        } = await import("./db");
+        const { generateInterviewQuestionsWithConsulting } = await import("./llm-helpers");
+
+        // Get cover letter text
+        let text = input.coverLetterText;
+        if (!text && input.writingId) {
+          const history = await getWritingHistoryById(input.writingId);
+          text = history?.generatedText;
+        }
+
+        if (!text) {
+          throw new Error("자소서 내용이 필요합니다");
+        }
+
+        // Get interview style if provided
+        let interviewStyle = null;
+        if (input.interviewStyleId) {
+          interviewStyle = await getInterviewStyleProfileById(input.interviewStyleId);
+        }
+
+        // Generate interview questions with consulting
+        const questions = await generateInterviewQuestionsWithConsulting({
+          coverLetterText: text,
+          interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
+          questionCount: input.questionCount,
+        });
+
+        // Save to database
+        const questionsToSave = questions.map((q: any) => ({
+          userId: ctx.user!.id,
+          interviewStyleId: input.interviewStyleId,
+          writingId: input.writingId,
+          question: q.question,
+          suggestedAnswer: q.suggestedAnswer,
+          answerStrategy: q.answerStrategy,
+          category: q.category,
+          difficulty: q.difficulty,
+        }));
+
+        await createInterviewQuestions(questionsToSave);
+
+        return { questions };
+      }),
+
+    getQuestions: protectedProcedure.query(async ({ ctx }) => {
+      const { getInterviewQuestionsByUserId } = await import("./db");
+      return await getInterviewQuestionsByUserId(ctx.user!.id);
+    }),
+
+    getByWritingId: protectedProcedure
+      .input(z.number())
+      .query(async ({ input }) => {
+        const { getInterviewQuestionsByWritingId } = await import("./db");
+        return await getInterviewQuestionsByWritingId(input);
+      }),
+  }),
 });
 
 export type AppRouter = typeof appRouter;

@@ -3,7 +3,7 @@ import { getApiUrl } from "@/config";
 import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Toaster, toast } from 'sonner';
+import { toast } from 'sonner';
 import { PenTool, Wand2, FileText } from 'lucide-react';
 import {
     Dialog,
@@ -12,14 +12,21 @@ import {
     DialogTitle,
     DialogTrigger,
 } from "@/components/ui/dialog";
+import { trpc } from '@/lib/api';
 
 export default function Writing() {
     const [prompt, setPrompt] = useState('');
-    const [styles, setStyles] = useState<{ id: number, name: string }[]>([]);
-    const [selectedStyleId, setSelectedStyleId] = useState<string>("");
+    const [selectedStyleId, setSelectedStyleId] = useState<number | undefined>();
     const [result, setResult] = useState('');
+    const [itemType, setItemType] = useState('자유양식');
+    const [targetCharCount, setTargetCharCount] = useState<number>(1000);
 
-    const [isGenerating, setIsGenerating] = useState(false);
+    // tRPC hooks
+    const { data: styles = [] } = trpc.writingLearning.listStyles.useQuery(undefined, {
+        retry: false,
+        enabled: true,
+    });
+    const generateMutation = trpc.writing.generate.useMutation();
 
     // Character Count State
     const [charCount, setCharCount] = useState({
@@ -88,45 +95,46 @@ export default function Writing() {
         }
     };
 
+    // Set default style when styles load
     useEffect(() => {
-        fetch(getApiUrl('/api/learning/styles'))
-            .then(res => res.json())
-            .then(data => {
-                setStyles(data);
-                if (data.length > 0) setSelectedStyleId(data[0].id.toString());
-            })
-            .catch(console.error);
-    }, []);
+        if (styles.length > 0 && !selectedStyleId) {
+            setSelectedStyleId(styles[0].id);
+        }
+    }, [styles, selectedStyleId]);
 
     const handleGenerate = async () => {
         if (!prompt.trim()) return;
 
-        setIsGenerating(true);
         try {
-            const response = await fetch(getApiUrl('/api/writing/generate'), {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prompt: prompt,
-                    style_id: parseInt(selectedStyleId),
-
-                    context: {
-                        jd_keywords: jdContext?.keywords,
-                        jd_summary: jdContext?.summary
-                    }
-                })
+            const data = await generateMutation.mutateAsync({
+                prompt,
+                styleId: selectedStyleId,
+                itemType,
+                targetCharCount,
+                context: {
+                    jd_keywords: jdContext?.keywords,
+                    jd_summary: jdContext?.summary,
+                },
             });
 
-            if (!response.ok) throw new Error('Generation failed');
+            setResult(data.generatedText);
+            const charDiff = data.actualCharCount - (data.targetCharCount || 0);
+            const diffPercent = data.targetCharCount
+                ? Math.abs(charDiff / data.targetCharCount * 100).toFixed(1)
+                : 0;
 
-            const data = await response.json();
-            setResult(data.generated_text);
-            toast.success("작성이 완료되었습니다!");
-        } catch (e) {
+            // Show similarity score if available
+            const similarityMsg = data.styleSimilarity
+                ? `\n스타일 일치도: ${data.styleSimilarity}%`
+                : '';
+            const similarityEmoji = data.styleSimilarity && data.styleSimilarity >= 30 ? '✅' : data.styleSimilarity ? '⚠️' : '';
+
+            toast.success(
+                `${similarityEmoji} 작성 완료!\n목표: ${data.targetCharCount}자 / 실제: ${data.actualCharCount}자${similarityMsg}`
+            );
+        } catch (e: any) {
             console.error(e);
-            toast.error("생성 실패");
-        } finally {
-            setIsGenerating(false);
+            toast.error(e.message || "생성 실패");
         }
     };
 
@@ -145,18 +153,47 @@ export default function Writing() {
                         </div>
                         <div className="flex-1 bg-card rounded-lg border border-border p-6 shadow-sm flex flex-col gap-4">
 
-                            {/* Style Selection */}
+                            {/* Item Type */}
                             <div>
-                                <label className="text-sm font-medium mb-1 block text-muted-foreground">스타일 선택</label>
+                                <label className="text-sm font-medium mb-1 block text-muted-foreground">항목 유형</label>
                                 <select
                                     className="w-full p-2 rounded-md border border-gray-300 bg-background"
-                                    value={selectedStyleId}
-                                    onChange={(e) => setSelectedStyleId(e.target.value)}
+                                    value={itemType}
+                                    onChange={(e) => setItemType(e.target.value)}
                                 >
+                                    <option value="지원동기">지원동기</option>
+                                    <option value="입사후포부">입사 후 포부</option>
+                                    <option value="성장과정">성장과정</option>
+                                    <option value="자유양식">자유양식</option>
+                                </select>
+                            </div>
+
+                            {/* Target Character Count */}
+                            <div>
+                                <label className="text-sm font-medium mb-1 block text-muted-foreground">목표 글자수</label>
+                                <input
+                                    type="number"
+                                    className="w-full p-2 rounded-md border border-gray-300 bg-background"
+                                    value={targetCharCount}
+                                    onChange={(e) => setTargetCharCount(parseInt(e.target.value) || 1000)}
+                                    min={100}
+                                    max={3000}
+                                    step={100}
+                                />
+                            </div>
+
+                            {/* Style Selection */}
+                            <div>
+                                <label className="text-sm font-medium mb-1 block text-muted-foreground">스타일 선택 (선택사항)</label>
+                                <select
+                                    className="w-full p-2 rounded-md border border-gray-300 bg-background"
+                                    value={selectedStyleId || ''}
+                                    onChange={(e) => setSelectedStyleId(e.target.value ? parseInt(e.target.value) : undefined)}
+                                >
+                                    <option value="">기본 스타일</option>
                                     {styles.map(s => (
                                         <option key={s.id} value={s.id}>{s.name}</option>
                                     ))}
-                                    {styles.length === 0 && <option value="">학습된 스타일 없음 (기본)</option>}
                                 </select>
                             </div>
 
@@ -178,11 +215,11 @@ export default function Writing() {
                                 </Button>
                                 <Button
                                     onClick={handleGenerate}
-                                    disabled={isGenerating}
+                                    disabled={generateMutation.isPending}
                                     className="gap-2 flex-1 bg-primary hover:bg-primary/90 text-white"
                                 >
                                     <Wand2 className="w-5 h-5" />
-                                    {isGenerating ? 'AI가 작성 중...' : 'AI로 생성하기'}
+                                    {generateMutation.isPending ? 'AI가 작성 중...' : 'AI로 생성하기'}
                                 </Button>
                             </div>
 

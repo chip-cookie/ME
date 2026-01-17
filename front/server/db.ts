@@ -1,6 +1,19 @@
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/mysql2";
-import { InsertUser, users, services, caseStudies, clientResults, insights, leadInquiries, InsertLeadInquiry } from "../drizzle/schema";
+import {
+  InsertUser,
+  users,
+  services,
+  caseStudies,
+  clientResults,
+  insights,
+  leadInquiries,
+  InsertLeadInquiry,
+  writingStyleProfiles,
+  interviewStyleProfiles,
+  writingHistory,
+  interviewQuestions,
+} from "../drizzle/schema";
 import { ENV } from './_core/env';
 
 let _db: ReturnType<typeof drizzle> | null = null;
@@ -19,7 +32,17 @@ export async function getDb() {
 }
 
 // Re-export table types for use in other files
-export { services, caseStudies, clientResults, insights, leadInquiries };
+export {
+  services,
+  caseStudies,
+  clientResults,
+  insights,
+  leadInquiries,
+  writingStyleProfiles,
+  interviewStyleProfiles,
+  writingHistory,
+  interviewQuestions,
+} from "../drizzle/schema";
 
 export async function upsertUser(user: InsertUser): Promise<void> {
   if (!user.openId) {
@@ -135,9 +158,9 @@ export async function getAllCaseStudies() {
 export async function getCaseStudiesByFilters(industry?: string, scope?: string, impact?: string) {
   const db = await getDb();
   if (!db) return [];
-  
+
   let query = db.select().from(caseStudies) as any;
-  
+
   if (industry) {
     query = query.where(eq(caseStudies.industry, industry));
   }
@@ -147,7 +170,7 @@ export async function getCaseStudiesByFilters(industry?: string, scope?: string,
   if (impact) {
     query = query.where(eq(caseStudies.impact, impact));
   }
-  
+
   return await query.orderBy(caseStudies.order);
 }
 
@@ -187,7 +210,7 @@ export async function getFeaturedInsights() {
 export async function createLeadInquiry(inquiry: InsertLeadInquiry) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   const result = await db.insert(leadInquiries).values(inquiry);
   return result;
 }
@@ -201,6 +224,113 @@ export async function getLeadInquiries() {
 export async function updateLeadInquiryStatus(id: number, status: string) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-  
+
   await db.update(leadInquiries).set({ status: status as any }).where(eq(leadInquiries.id, id));
+}
+
+/**
+ * Writing Style Profiles queries
+ */
+export async function createWritingStyleProfile(profile: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(writingStyleProfiles).values(profile);
+  return result;
+}
+
+export async function getWritingStyleProfilesByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(writingStyleProfiles).where(eq(writingStyleProfiles.userId, userId));
+}
+
+export async function getWritingStyleProfileById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(writingStyleProfiles).where(eq(writingStyleProfiles.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function deleteWritingStyleProfile(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(writingStyleProfiles).where(eq(writingStyleProfiles.id, id));
+}
+
+/**
+ * Interview Style Profiles queries
+ */
+export async function createInterviewStyleProfile(profile: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(interviewStyleProfiles).values(profile);
+  return result;
+}
+
+export async function getInterviewStyleProfilesByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(interviewStyleProfiles).where(eq(interviewStyleProfiles.userId, userId));
+}
+
+export async function getInterviewStyleProfileById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(interviewStyleProfiles).where(eq(interviewStyleProfiles.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+export async function deleteInterviewStyleProfile(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.delete(interviewStyleProfiles).where(eq(interviewStyleProfiles.id, id));
+}
+
+/**
+ * Writing History queries
+ */
+export async function createWritingHistory(history: any) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(writingHistory).values(history);
+  return result;
+}
+
+export async function getWritingHistoryByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(writingHistory).where(eq(writingHistory.userId, userId)).orderBy(writingHistory.createdAt);
+}
+
+export async function getWritingHistoryById(id: number) {
+  const db = await getDb();
+  if (!db) return undefined;
+  const result = await db.select().from(writingHistory).where(eq(writingHistory.id, id)).limit(1);
+  return result.length > 0 ? result[0] : undefined;
+}
+
+/**
+ * Interview Questions queries
+ */
+export async function createInterviewQuestions(questions: any[]) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+
+  const result = await db.insert(interviewQuestions).values(questions);
+  return result;
+}
+
+export async function getInterviewQuestionsByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(interviewQuestions).where(eq(interviewQuestions.userId, userId)).orderBy(interviewQuestions.createdAt);
+}
+
+export async function getInterviewQuestionsByWritingId(writingId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(interviewQuestions).where(eq(interviewQuestions.writingId, writingId)).orderBy(interviewQuestions.createdAt);
 }
