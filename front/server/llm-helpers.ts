@@ -412,15 +412,45 @@ export async function analyzeExperience(text: string) {
 /**
  * Analyze company based on name, url, and scraped text
  */
-export async function analyzeCompany(name: string, url: string, text: string) {
+export async function analyzeCompany(name: string, url: string, text: string, dartInfo?: any, npsInfo?: any) {
+    let systemPrompt = "당신은 기업 분석 및 채용 전략 전문가입니다. 제공된 기업 홈페이지/뉴스 텍스트를 바탕으로 기업을 분석하여, 구직자에게 도움이 되는 핵심 정보를 구조화하여 제공합니다. 특히 '인재상', '최신 이슈', '사업 방향'에 집중하세요.";
+
+    let content = `기업명: ${name}\nURL: ${url}\n\n`;
+
+    if (dartInfo) {
+        content += `[DART 기업 개요]\n`;
+        content += `- 법인명: ${dartInfo.corp_name}\n`;
+        content += `- 영문명: ${dartInfo.corp_name_eng || ''}\n`;
+        content += `- 대표자: ${dartInfo.ceo_nm}\n`;
+        content += `- 업종코드: ${dartInfo.induty_code}\n`;
+        content += `- 설립일: ${dartInfo.est_dt}\n`;
+        content += `- 주소: ${dartInfo.adres}\n`;
+        content += `- 홈페이지: ${dartInfo.hm_url || ''}\n\n`;
+    }
+
+    if (npsInfo && npsInfo.status === 'success') {
+        content += `[국민연금공단 고용 정보]\n`;
+        content += `- 직원 수: ${npsInfo.employees?.toLocaleString() || '정보 없음'}명\n`;
+        content += `- 월평균 급여: ${npsInfo.avgMonthlyIncome?.toLocaleString() || '정보 없음'}원\n`;
+        content += `- 신규 입사자: ${npsInfo.newHires || 0}명\n`;
+        content += `- 퇴사자: ${npsInfo.departures || 0}명\n`;
+        if (npsInfo.employees && npsInfo.departures) {
+            const turnoverRate = ((npsInfo.departures / npsInfo.employees) * 100).toFixed(1);
+            content += `- 이직률 (추정): ${turnoverRate}%\n`;
+        }
+        content += `\n`;
+    }
+
+    content += `수집된 텍스트:\n${text.substring(0, 15000)}\n\n위 내용을 분석하여 인재상, 핵심 가치, 주요 사업, 최신 이슈, SWOT 분석 등을 정리해주세요.`;
+
     const messages: Message[] = [
         {
             role: "system",
-            content: "당신은 기업 분석 및 채용 전략 전문가입니다. 제공된 기업 홈페이지/뉴스 텍스트를 바탕으로 기업을 분석하여, 구직자에게 도움이 되는 핵심 정보를 구조화하여 제공합니다. 특히 '인재상', '최신 이슈', '사업 방향'에 집중하세요."
+            content: systemPrompt
         },
         {
             role: "user",
-            content: `기업명: ${name}\nURL: ${url}\n\n수집된 텍스트:\n${text.substring(0, 15000)}\n\n위 내용을 분석하여 인재상, 핵심 가치, 주요 사업, 최신 이슈, SWOT 분석 등을 정리해주세요.`
+            content: content
         }
     ];
 
@@ -466,3 +496,4 @@ export async function analyzeCompany(name: string, url: string, text: string) {
 
     return JSON.parse(result.choices[0].message.content as string);
 }
+

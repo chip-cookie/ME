@@ -510,6 +510,8 @@ export const appRouter = router({
       }))
       .mutation(async ({ input }) => {
         const { crawlUrl } = await import("./tools/crawler");
+        const { getDartCompanyInfo } = await import("./tools/dart");
+        const { getNpsCompanyInfo } = await import("./tools/nps");
         const { analyzeCompany } = await import("./llm-helpers");
 
         let text = "";
@@ -517,8 +519,35 @@ export const appRouter = router({
           text = await crawlUrl(input.websiteUrl);
         }
 
-        const analysis = await analyzeCompany(input.companyName, input.websiteUrl || "", text);
-        return analysis;
+        // Fetch DART info
+        let dartInfo = null;
+        try {
+          if (input.companyName) {
+            dartInfo = await getDartCompanyInfo(input.companyName);
+          }
+        } catch (e) {
+          console.error("DART fetch failed:", e);
+        }
+
+        // Fetch NPS info
+        let npsInfo = null;
+        try {
+          if (input.companyName) {
+            npsInfo = await getNpsCompanyInfo(input.companyName);
+          }
+        } catch (e) {
+          console.error("NPS fetch failed:", e);
+        }
+
+        // Analyze with LLM (using DART + NPS context)
+        const llmAnalysis = await analyzeCompany(input.companyName, input.websiteUrl || "", text, dartInfo, npsInfo);
+
+        // Return enriched result with all API data for frontend to save
+        return {
+          ...llmAnalysis,
+          dartInfo: dartInfo || null,
+          npsInfo: npsInfo || null,
+        };
       }),
 
     create: publicProcedure
