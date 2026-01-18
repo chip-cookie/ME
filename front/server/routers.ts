@@ -421,7 +421,6 @@ export const appRouter = router({
         const questions = await generateInterviewQuestionsWithConsulting({
           coverLetterText: text,
           interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
-          interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
           questionCount: input.questionCount,
           corporateContext,
         });
