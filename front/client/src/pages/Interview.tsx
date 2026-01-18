@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { MessageSquare, Wand2, ChevronDown, ChevronUp, BookOpen } from 'lucide-react';
+import { MessageSquare, Wand2, ChevronDown, ChevronUp, BookOpen, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import Navbar from '@/components/Navbar';
@@ -19,6 +19,7 @@ export default function Interview() {
     const [coverLetterText, setCoverLetterText] = useState('');
     const [selectedWritingId, setSelectedWritingId] = useState<number | undefined>();
     const [selectedInterviewStyleId, setSelectedInterviewStyleId] = useState<number | undefined>();
+    const [selectedCorporateId, setSelectedCorporateId] = useState<number | undefined>();
     const [questionCount, setQuestionCount] = useState(5);
     const [questions, setQuestions] = useState<Question[]>([]);
     const [expandedIndex, setExpandedIndex] = useState<number | null>(null);
@@ -26,6 +27,7 @@ export default function Interview() {
     // tRPC queries
     const { data: writingHistory = [] } = trpc.writing.getHistory.useQuery(undefined, { retry: false });
     const { data: interviewStyles = [] } = trpc.interviewLearning.listStyles.useQuery(undefined, { retry: false });
+    const { data: corporates = [] } = trpc.corporate.list.useQuery(undefined, { retry: false });
 
     const generateMutation = trpc.interview.generateQuestions.useMutation({
         onSuccess: (data) => {
@@ -51,6 +53,7 @@ export default function Interview() {
             writingId: inputMode === 'select' ? selectedWritingId : undefined,
             coverLetterText: inputMode === 'text' ? coverLetterText : undefined,
             interviewStyleId: selectedInterviewStyleId,
+            corporateId: selectedCorporateId,
             questionCount,
         });
     };
@@ -144,6 +147,25 @@ export default function Interview() {
                                         <option key={style.id} value={style.id}>{style.name}</option>
                                     ))}
                                 </select>
+                            </div>
+
+                            <div>
+                                <label className="block text-sm font-medium mb-1">기업 분석 (선택)</label>
+                                <div className="relative">
+                                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <select
+                                        className="w-full p-2 pl-9 rounded-md border border-gray-300 bg-background"
+                                        value={selectedCorporateId || ''}
+                                        onChange={(e) => setSelectedCorporateId(e.target.value ? parseInt(e.target.value) : undefined)}
+                                    >
+                                        <option value="">선택 안 함</option>
+                                        {corporates.map((corp: any) => (
+                                            <option key={corp.id} value={corp.id}>
+                                                {corp.companyName} ({new Date(corp.createdAt).toLocaleDateString()})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
                             </div>
 
                             <div>

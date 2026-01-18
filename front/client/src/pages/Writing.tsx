@@ -4,7 +4,7 @@ import Navbar from '@/components/Navbar';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { PenTool, Wand2, FileText } from 'lucide-react';
+import { PenTool, Wand2, FileText, Building2 } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -18,6 +18,7 @@ export default function Writing() {
     const [prompt, setPrompt] = useState('');
     const [selectedStyleId, setSelectedStyleId] = useState<number | undefined>();
     const [selectedExperienceId, setSelectedExperienceId] = useState<number | undefined>();
+    const [selectedCorporateId, setSelectedCorporateId] = useState<number | undefined>();
     const [result, setResult] = useState('');
     const [itemType, setItemType] = useState('자유양식');
     const [targetCharCount, setTargetCharCount] = useState<number>(1000);
@@ -33,6 +34,10 @@ export default function Writing() {
         enabled: true,
     });
     const { data: experiences = [] } = trpc.experience.list.useQuery(undefined, {
+        retry: false,
+        enabled: true,
+    });
+    const { data: corporates = [] } = trpc.corporate.list.useQuery(undefined, {
         retry: false,
         enabled: true,
     });
@@ -119,6 +124,7 @@ export default function Writing() {
                 itemType,
                 targetCharCount,
                 experienceId: selectedExperienceId,
+                corporateId: selectedCorporateId,
                 context: {
                     jd_keywords: jdContext?.keywords,
                     jd_summary: jdContext?.summary,
@@ -259,6 +265,31 @@ export default function Writing() {
                                 {selectedExperienceId && (
                                     <p className="text-xs text-muted-foreground mt-1">
                                         선택한 경험의 분석 내용(STAR 기법)이 프롬프트에 자동으로 포함됩니다.
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Corporate Analysis Selection */}
+                            <div>
+                                <label className="text-sm font-medium mb-1 block text-muted-foreground">기업 분석 선택 (선택사항)</label>
+                                <div className="relative">
+                                    <Building2 className="absolute left-3 top-2.5 h-4 w-4 text-muted-foreground" />
+                                    <select
+                                        className="w-full p-2 pl-9 rounded-md border border-gray-300 bg-background"
+                                        value={selectedCorporateId || ''}
+                                        onChange={(e) => setSelectedCorporateId(e.target.value ? parseInt(e.target.value) : undefined)}
+                                    >
+                                        <option value="">선택 안 함</option>
+                                        {corporates.map((corp: any) => (
+                                            <option key={corp.id} value={corp.id}>
+                                                {corp.companyName} ({new Date(corp.createdAt).toLocaleDateString()})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                {selectedCorporateId && (
+                                    <p className="text-xs text-muted-foreground mt-1">
+                                        기업의 인재상/핵심가치/최신이슈가 반영되어 작성됩니다.
                                     </p>
                                 )}
                             </div>

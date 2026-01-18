@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { ArrowRight, PenTool, BookOpen, MessageSquare, Heart } from 'lucide-react';
+import { ArrowRight, PenTool, BookOpen, MessageSquare, Heart, Building2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Navbar from '@/components/Navbar';
 import ChatBot from '@/components/ChatBot';
@@ -66,6 +66,12 @@ export default function Home() {
               title="감정분석"
               description="작성한 글의 감정을 분석하여 긍정/부정을 판단하고 더 나은 표현을 제안합니다."
               link="/sentiment"
+            />
+            <FeatureCard
+              icon={<Building2 className="w-8 h-8 text-accent" />}
+              title="기업 분석"
+              description="지원하려는 기업의 비전, 최신 이슈, 재무 상태 등을 분석하여 지원 전략을 수립합니다."
+              link="/corporate"
             />
           </div>
         </div>

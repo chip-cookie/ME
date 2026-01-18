@@ -271,7 +271,8 @@ export const appRouter = router({
         styleId: z.number().optional(),
         itemType: z.string().optional(),
         targetCharCount: z.number().optional(),
-        experienceId: z.number().optional(), // New input
+        experienceId: z.number().optional(),
+        corporateId: z.number().optional(), // Corporate Analysis context
         context: z.object({
           jd_keywords: z.array(z.string()).optional(),
           jd_summary: z.string().optional(),
@@ -300,6 +301,20 @@ export const appRouter = router({
           }
         }
 
+        // Get corporate info if provided
+        let corporateContext = undefined;
+        if (input.corporateId) {
+          const { getCorporateAnalysisById } = await import("./db");
+          const userId = ctx.user?.id || 0;
+          const corp = await getCorporateAnalysisById(input.corporateId);
+          if (corp && corp.userId === userId) {
+            corporateContext = typeof corp.analysisResult === 'string' ? JSON.parse(corp.analysisResult) : corp.analysisResult;
+            if (corporateContext) {
+              corporateContext.companyName = corp.companyName;
+            }
+          }
+        }
+
         // Generate cover letter with character count constraint and RAG
         const result = await generateCoverLetter({
           prompt: input.prompt,
@@ -310,6 +325,7 @@ export const appRouter = router({
           jdKeywords: input.context?.jd_keywords,
           jdSummary: input.context?.jd_summary,
           experienceContext, // Pass STAR summary
+          corporateContext, // Pass Corporate Analysis
         });
 
         // Calculate actual character count (excluding spaces)
@@ -360,12 +376,14 @@ export const appRouter = router({
         coverLetterText: z.string().optional(),
         interviewStyleId: z.number().optional(),
         questionCount: z.number().default(5),
+        corporateId: z.number().optional(),
       }))
       .mutation(async ({ input, ctx }) => {
         const {
           getWritingHistoryById,
           getInterviewStyleProfileById,
-          createInterviewQuestions
+          createInterviewQuestions,
+          getCorporateAnalysisById
         } = await import("./db");
         const { generateInterviewQuestionsWithConsulting } = await import("./llm-helpers");
 
@@ -386,11 +404,26 @@ export const appRouter = router({
           interviewStyle = await getInterviewStyleProfileById(input.interviewStyleId);
         }
 
+        // Get corporate info if provided
+        let corporateContext = undefined;
+        if (input.corporateId) {
+          const userId = ctx.user?.id || 0;
+          const corp = await getCorporateAnalysisById(input.corporateId);
+          if (corp && corp.userId === userId) {
+            corporateContext = typeof corp.analysisResult === 'string' ? JSON.parse(corp.analysisResult) : corp.analysisResult;
+            if (corporateContext) {
+              corporateContext.companyName = corp.companyName;
+            }
+          }
+        }
+
         // Generate interview questions with consulting
         const questions = await generateInterviewQuestionsWithConsulting({
           coverLetterText: text,
           interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
+          interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
           questionCount: input.questionCount,
+          corporateContext,
         });
 
         const userId = ctx.user?.id || 0;
@@ -465,6 +498,59 @@ export const appRouter = router({
       .mutation(async ({ input }) => {
         const { deleteExperienceLog } = await import("./db");
         await deleteExperienceLog(input);
+        return { success: true };
+      }),
+  }),
+
+  // Corporate Analysis
+  corporate: router({
+    analyze: publicProcedure
+      .input(z.object({
+        companyName: z.string().min(1),
+        websiteUrl: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { crawlUrl } = await import("./tools/crawler");
+        const { analyzeCompany } = await import("./llm-helpers");
+
+        let text = "";
+        if (input.websiteUrl && input.websiteUrl.length > 5) {
+          text = await crawlUrl(input.websiteUrl);
+        }
+
+        const analysis = await analyzeCompany(input.companyName, input.websiteUrl || "", text);
+        return analysis;
+      }),
+
+    create: publicProcedure
+      .input(z.object({
+        companyName: z.string().min(1),
+        websiteUrl: z.string().optional(),
+        analysisResult: z.string(), // JSON string
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createCorporateAnalysis } = await import("./db");
+        const userId = ctx.user?.id || 0;
+        await createCorporateAnalysis({
+          userId,
+          companyName: input.companyName,
+          websiteUrl: input.websiteUrl,
+          analysisResult: input.analysisResult,
+        });
+        return { success: true };
+      }),
+
+    list: publicProcedure.query(async ({ ctx }) => {
+      const { getCorporateAnalysisByUserId } = await import("./db");
+      const userId = ctx.user?.id || 0;
+      return await getCorporateAnalysisByUserId(userId);
+    }),
+
+    delete: publicProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        const { deleteCorporateAnalysis } = await import("./db");
+        await deleteCorporateAnalysis(input);
         return { success: true };
       }),
   }),

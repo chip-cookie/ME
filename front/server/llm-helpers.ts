@@ -141,6 +141,7 @@ export async function generateCoverLetter(params: {
     jdKeywords?: string[];
     jdSummary?: string;
     experienceContext?: any; // STAR summary
+    corporateContext?: any; // Corporate Analysis
 }) {
     let systemPrompt = "당신은 자기소개서 작성 전문가입니다.";
 
@@ -172,6 +173,23 @@ export async function generateCoverLetter(params: {
                 systemPrompt += `\n- 성격의 단점/보완점: ${params.experienceContext.personality.weaknesses}`;
             }
         }
+    }
+
+    // Add Corporate Context
+    if (params.corporateContext) {
+        const corp = params.corporateContext;
+        systemPrompt += `\n\n**지원 기업 정보 (${corp.companyName}):**
+- 미션/비전: ${corp.mission}
+- 인재상: ${corp.ideal_candidate ? corp.ideal_candidate.join(', ') : '정보 없음'}
+- 주요 사업: ${corp.business ? corp.business.join(', ') : '정보 없음'}
+- 최신 이슈: ${corp.recent_issues ? corp.recent_issues.join(', ') : ''}`;
+
+        if (corp.swot) {
+            systemPrompt += `\n- 기업 강점(Strength): ${corp.swot.strength}`;
+            systemPrompt += `\n- 기업 기회(Opportunity): ${corp.swot.opportunity}`;
+        }
+
+        systemPrompt += `\n\n**작성 지침:** 위 기업의 인재상과 핵심 가치를 반영하여 사용자의 경험을 연결하고, 기업의 비전에 기여할 수 있음을 강조하세요.`;
     }
 
     // RAG: Add actual training examples (top-k most relevant)
@@ -261,11 +279,23 @@ export async function generateInterviewQuestionsWithConsulting(params: {
     coverLetterText: string;
     interviewStyle: any;
     questionCount: number;
+    corporateContext?: any; // Corporate Analysis
 }) {
     let systemPrompt = "당신은 면접 전문 컨설턴트입니다. 자기소개서를 분석하여 면접 질문을 생성하고, 각 질문에 대한 모범 답변과 답변 전략을 제공하세요.";
 
     if (params.interviewStyle) {
         systemPrompt += `\n\n사용자의 면접 답변 스타일:\n- 답변 구조: ${params.interviewStyle.answer_structure}\n- 커뮤니케이션 스타일: ${params.interviewStyle.communication_style}`;
+    }
+
+    if (params.corporateContext) {
+        const corp = params.corporateContext;
+        systemPrompt += `\n\n**지원 기업 정보 (${corp.companyName}):**
+- 미션/비전: ${corp.mission}
+- 인재상: ${corp.ideal_candidate ? corp.ideal_candidate.join(', ') : ''}
+- 최신 이슈: ${corp.recent_issues ? corp.recent_issues.join(', ') : ''}
+- SWOT: ${corp.swot ? JSON.stringify(corp.swot) : ''}
+
+면접 질문 생성 시 기업의 최신 이슈나 인재상과 관련된 질문을 포함하고, 답변 전략에서는 기업의 핵심 가치에 부합하는 답변 방향을 제시하세요.`;
     }
 
     const messages: Message[] = [
@@ -372,6 +402,64 @@ export async function analyzeExperience(text: string) {
                     }
                 },
                 required: ["star_summary", "personality"]
+            }
+        }
+    });
+
+    return JSON.parse(result.choices[0].message.content as string);
+}
+
+/**
+ * Analyze company based on name, url, and scraped text
+ */
+export async function analyzeCompany(name: string, url: string, text: string) {
+    const messages: Message[] = [
+        {
+            role: "system",
+            content: "당신은 기업 분석 및 채용 전략 전문가입니다. 제공된 기업 홈페이지/뉴스 텍스트를 바탕으로 기업을 분석하여, 구직자에게 도움이 되는 핵심 정보를 구조화하여 제공합니다. 특히 '인재상', '최신 이슈', '사업 방향'에 집중하세요."
+        },
+        {
+            role: "user",
+            content: `기업명: ${name}\nURL: ${url}\n\n수집된 텍스트:\n${text.substring(0, 15000)}\n\n위 내용을 분석하여 인재상, 핵심 가치, 주요 사업, 최신 이슈, SWOT 분석 등을 정리해주세요.`
+        }
+    ];
+
+    const result = await invokeLLM({
+        messages,
+        outputSchema: {
+            name: "company_analysis",
+            schema: {
+                type: "object",
+                properties: {
+                    mission: { type: "string", description: "기업의 미션, 비전, 핵심 가치" },
+                    ideal_candidate: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "인재상 키워드 (3~5개)"
+                    },
+                    business: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "주요 사업 분야 및 제품/서비스"
+                    },
+                    recent_issues: {
+                        type: "array",
+                        items: { type: "string" },
+                        description: "최근 주요 이슈, 뉴스, 성과 (텍스트에 없으면 일반적인 업계 동향 추론)"
+                    },
+                    financials: { type: "string", description: "재무 상태 또는 성장성 요약 (텍스트에 없으면 '정보 없음')" },
+                    swot: {
+                        type: "object",
+                        properties: {
+                            strength: { type: "string", description: "강점" },
+                            weakness: { type: "string", description: "약점" },
+                            opportunity: { type: "string", description: "기회" },
+                            threat: { type: "string", description: "위협" }
+                        },
+                        required: ["strength", "weakness", "opportunity", "threat"]
+                    }
+                },
+                required: ["mission", "ideal_candidate", "business", "recent_issues", "financials", "swot"]
             }
         }
     });

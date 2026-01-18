@@ -214,3 +214,18 @@ export const experienceLogs = mysqlTable("experience_logs", {
 
 export type ExperienceLog = typeof experienceLogs.$inferSelect;
 export type InsertExperienceLog = typeof experienceLogs.$inferInsert;
+
+/**
+ * Corporate Analysis table - Stores company analysis results
+ */
+export const corporateAnalysis = mysqlTable("corporate_analysis", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  companyName: varchar("companyName", { length: 255 }).notNull(),
+  websiteUrl: varchar("websiteUrl", { length: 500 }),
+  analysisResult: json("analysisResult"), // JSON: { mission, financials, news, business_direction }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+});
+
+export type CorporateAnalysis = typeof corporateAnalysis.$inferSelect;
+export type InsertCorporateAnalysis = typeof corporateAnalysis.$inferInsert;
