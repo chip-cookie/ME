@@ -19,7 +19,7 @@ export type FileContent = {
   type: "file_url";
   file_url: {
     url: string;
-    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4" ;
+    mime_type?: "audio/mpeg" | "audio/wav" | "application/pdf" | "audio/mp4" | "video/mp4";
   };
 };
 
@@ -209,14 +209,25 @@ const normalizeToolChoice = (
   return toolChoice;
 };
 
-const resolveApiUrl = () =>
-  ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0
-    ? `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`
-    : "https://forge.manus.im/v1/chat/completions";
+const resolveApiUrl = (useGemini = false) => {
+  if (ENV.forgeApiUrl && ENV.forgeApiUrl.trim().length > 0) {
+    return `${ENV.forgeApiUrl.replace(/\/$/, "")}/v1/chat/completions`;
+  }
+  if (useGemini && ENV.geminiApiKey) {
+    return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+  }
+  if (ENV.grokApiKey) {
+    return "https://api.groq.com/openai/v1/chat/completions";
+  }
+  if (ENV.geminiApiKey) {
+    return "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions";
+  }
+  return "https://forge.manus.im/v1/chat/completions";
+};
 
 const assertApiKey = () => {
-  if (!ENV.forgeApiKey) {
-    throw new Error("OPENAI_API_KEY is not configured");
+  if (!ENV.forgeApiKey && !ENV.grokApiKey && !ENV.geminiApiKey) {
+    throw new Error("API Key is not configured (requires GROK_API_KEY, GEMINI_API_KEY, or BUILT_IN_FORGE_API_KEY)");
   }
 };
 
@@ -279,8 +290,16 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     response_format,
   } = params;
 
+  // Use Grok model if Grok API key is present
+  const model = ENV.grokApiKey ? "llama2-70b-4096" : "gemini-2.5-flash"; // Default to a Groq-supported model like llama2 or mixtral
+  // Note: For Groq, typical models are "llama3-70b-8192", "mixtral-8x7b-32768". Using a safe default.
+  // The user asked to use Grok (xAI) or Groq? 
+  // "gsk_..." looks like a Groq API key (starts with gsk_).
+  // Groq models: llama3-8b-8192, llama3-70b-8192, mixtral-8x7b-32768, gemma-7b-it
+  // Let's use "llama3-70b-8192" as a high-quality default for Groq.
+
   const payload: Record<string, unknown> = {
-    model: "gemini-2.5-flash",
+    model: ENV.grokApiKey ? "llama3-70b-8192" : "gemini-2.5-flash",
     messages: messages.map(normalizeMessage),
   };
 
@@ -296,9 +315,12 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.tool_choice = normalizedToolChoice;
   }
 
-  payload.max_tokens = 32768
-  payload.thinking = {
-    "budget_tokens": 128
+  // Remove thinking/max_tokens specific to Gemini if using Groq
+  if (!ENV.grokApiKey) {
+    payload.max_tokens = 32768
+    payload.thinking = {
+      "budget_tokens": 128
+    }
   }
 
   const normalizedResponseFormat = normalizeResponseFormat({
@@ -312,14 +334,52 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch(resolveApiUrl(), {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${ENV.forgeApiKey}`,
-    },
-    body: JSON.stringify(payload),
-  });
+  // Helper function to make request
+  const makeRequest = async (useGroq: boolean) => {
+    let apiKey: string;
+    let model: string;
+
+    if (useGroq && ENV.grokApiKey) {
+      // Fallback to Groq
+      apiKey = ENV.grokApiKey;
+      model = "llama3-70b-8192";
+      payload.model = model;
+    } else if (ENV.geminiApiKey) {
+      // Primary: Gemini
+      apiKey = ENV.geminiApiKey;
+      model = "gemini-2.0-flash";
+      payload.model = model;
+      delete payload.thinking;
+    } else if (ENV.grokApiKey) {
+      apiKey = ENV.grokApiKey;
+      model = "llama3-70b-8192";
+      payload.model = model;
+    } else {
+      apiKey = ENV.forgeApiKey;
+    }
+
+    const url = useGroq ? "https://api.groq.com/openai/v1/chat/completions"
+      : ENV.geminiApiKey ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
+        : resolveApiUrl(false);
+
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(payload),
+    });
+  };
+
+  // Try Gemini first, fallback to Groq on rate limit (429)
+  let response = await makeRequest(false);
+
+  // If Gemini returns 429 (rate limit), try Groq
+  if (response.status === 429 && ENV.grokApiKey) {
+    console.log("[LLM] Gemini rate limited. Falling back to Groq...");
+    response = await makeRequest(true);
+  }
 
   if (!response.ok) {
     const errorText = await response.text();
