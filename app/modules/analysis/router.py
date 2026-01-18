@@ -24,6 +24,37 @@ async def upload_jd(
     
     return session
 
+@router.post("/upload/extract")
+async def extract_text_only(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    파일을 업로드하고 즉시 텍스트를 추출하여 반환합니다.
+    (세션 생성 없음, 인터뷰 생성용 임시 업로드)
+    """
+    service = AnalysisService(db)
+    
+    # 임시 파일로 저장
+    import os
+    import shutil
+    from app.core.config import get_settings
+    
+    settings = get_settings()
+    temp_dir = settings.data_dir / "temp_uploads"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    file_path = os.path.join(temp_dir, file.filename)
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+        
+    # 추출 실행 (Dual-Path)
+    from app.modules.analysis.extraction_service import extract_document
+    result = extract_document(file_path)
+    
+    # 텍스트 반환
+    return {"text": result.text, "filename": file.filename}
+
 @router.get("/{session_id}", response_model=AnalysisResponse)
 def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
     """

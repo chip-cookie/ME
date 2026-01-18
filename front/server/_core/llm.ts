@@ -290,8 +290,8 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     response_format,
   } = params;
 
-  // Use Grok model if Grok API key is present
-  const model = ENV.grokApiKey ? "llama2-70b-4096" : "gemini-2.5-flash"; // Default to a Groq-supported model like llama2 or mixtral
+  // Use Gemini as primary, Groq as fallback
+  const model = ENV.geminiApiKey ? "gemini-2.0-flash" : "llama-3.3-70b-versatile";
   // Note: For Groq, typical models are "llama3-70b-8192", "mixtral-8x7b-32768". Using a safe default.
   // The user asked to use Grok (xAI) or Groq? 
   // "gsk_..." looks like a Groq API key (starts with gsk_).
@@ -299,7 +299,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   // Let's use "llama3-70b-8192" as a high-quality default for Groq.
 
   const payload: Record<string, unknown> = {
-    model: ENV.grokApiKey ? "llama3-70b-8192" : "gemini-2.5-flash",
+    model: ENV.geminiApiKey ? "gemini-2.0-flash" : "llama-3.3-70b-versatile",
     messages: messages.map(normalizeMessage),
   };
 
@@ -339,21 +339,30 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     let apiKey: string;
     let model: string;
 
+    // Clone payload to avoid mutating original
+    const requestPayload = { ...payload };
+
     if (useGroq && ENV.grokApiKey) {
       // Fallback to Groq
       apiKey = ENV.grokApiKey;
-      model = "llama3-70b-8192";
-      payload.model = model;
+      model = "llama-3.3-70b-versatile";
+      requestPayload.model = model;
+      // Groq doesn't support json_schema - remove it
+      delete requestPayload.response_format;
+      delete requestPayload.thinking;
     } else if (ENV.geminiApiKey) {
       // Primary: Gemini
       apiKey = ENV.geminiApiKey;
       model = "gemini-2.0-flash";
-      payload.model = model;
-      delete payload.thinking;
+      requestPayload.model = model;
+      delete requestPayload.thinking;
     } else if (ENV.grokApiKey) {
       apiKey = ENV.grokApiKey;
-      model = "llama3-70b-8192";
-      payload.model = model;
+      model = "llama-3.3-70b-versatile";
+      requestPayload.model = model;
+      // Groq doesn't support json_schema - remove it
+      delete requestPayload.response_format;
+      delete requestPayload.thinking;
     } else {
       apiKey = ENV.forgeApiKey;
     }
@@ -368,7 +377,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
         "content-type": "application/json",
         authorization: `Bearer ${apiKey}`,
       },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(requestPayload),
     });
   };
 

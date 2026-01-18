@@ -15,7 +15,7 @@ interface Question {
 }
 
 export default function Interview() {
-    const [inputMode, setInputMode] = useState<'select' | 'text'>('text');
+    const [inputMode, setInputMode] = useState<'select' | 'text' | 'file'>('text');
     const [coverLetterText, setCoverLetterText] = useState('');
     const [selectedWritingId, setSelectedWritingId] = useState<number | undefined>();
     const [selectedInterviewStyleId, setSelectedInterviewStyleId] = useState<number | undefined>();
@@ -109,16 +109,25 @@ export default function Interview() {
                             >
                                 작성 이력에서 선택
                             </Button>
+                            <Button
+                                variant={inputMode === 'file' ? 'default' : 'outline'}
+                                size="sm"
+                                onClick={() => setInputMode('file')}
+                            >
+                                이력서 파일 업로드
+                            </Button>
                         </div>
 
-                        {inputMode === 'text' ? (
+                        {inputMode === 'text' && (
                             <Textarea
                                 className="min-h-[200px] mb-4"
                                 placeholder="면접 질문을 생성할 자소서 내용을 입력하세요..."
                                 value={coverLetterText}
                                 onChange={(e) => setCoverLetterText(e.target.value)}
                             />
-                        ) : (
+                        )}
+
+                        {inputMode === 'select' && (
                             <select
                                 className="w-full p-3 rounded-md border border-gray-300 bg-background mb-4"
                                 value={selectedWritingId || ''}
@@ -131,6 +140,55 @@ export default function Interview() {
                                     </option>
                                 ))}
                             </select>
+                        )}
+
+                        {inputMode === 'file' && (
+                            <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 mb-4 text-center hover:bg-accent/5 transition-colors">
+                                <input
+                                    type="file"
+                                    id="resume-upload"
+                                    className="hidden"
+                                    accept=".pdf,.docx,.doc,image/*"
+                                    onChange={async (e) => {
+                                        const file = e.target.files?.[0];
+                                        if (!file) return;
+
+                                        const formData = new FormData();
+                                        formData.append('file', file);
+
+                                        const loadingToast = toast.loading('파일 분석 중...');
+
+                                        try {
+                                            const response = await fetch('/api/analysis/upload/extract', {
+                                                method: 'POST',
+                                                body: formData,
+                                            });
+
+                                            if (!response.ok) throw new Error('업로드 실패');
+
+                                            const data = await response.json();
+                                            setCoverLetterText(data.text);
+                                            toast.dismiss(loadingToast);
+                                            toast.success('이력서 내용이 추출되었습니다!');
+                                            // Switch to text mode to show/edit extracted text
+                                            setInputMode('text');
+                                        } catch (error) {
+                                            console.error(error);
+                                            toast.dismiss(loadingToast);
+                                            toast.error('파일 분석에 실패했습니다.');
+                                        }
+                                    }}
+                                />
+                                <label htmlFor="resume-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                                    <BookOpen className="w-8 h-8 text-muted-foreground" />
+                                    <span className="text-sm font-medium">
+                                        클릭하여 파일 업로드 (PDF, DOCX, 이미지)
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        파일을 올리면 내용을 자동으로 분석하여 입력창에 채워줍니다.
+                                    </span>
+                                </label>
+                            </div>
                         )}
 
                         {/* Options */}

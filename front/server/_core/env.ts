@@ -1,12 +1,14 @@
+// Use getters to ensure values are read AFTER dotenv.config() runs
+// (ES module imports are hoisted, so static values would be empty)
 export const ENV = {
-  appId: process.env.VITE_APP_ID ?? "",
-  cookieSecret: process.env.JWT_SECRET ?? "",
-  databaseUrl: process.env.DATABASE_URL ?? "",
-  oAuthServerUrl: process.env.OAUTH_SERVER_URL ?? "",
-  ownerOpenId: process.env.OWNER_OPEN_ID ?? "",
-  isProduction: process.env.NODE_ENV === "production",
-  forgeApiUrl: process.env.BUILT_IN_FORGE_API_URL ?? "",
-  forgeApiKey: process.env.BUILT_IN_FORGE_API_KEY ?? "",
-  grokApiKey: process.env.GROK_API_KEY ?? "",
-  geminiApiKey: process.env.GEMINI_API_KEY ?? "",
+  get appId() { return process.env.VITE_APP_ID ?? ""; },
+  get cookieSecret() { return process.env.JWT_SECRET ?? ""; },
+  get databaseUrl() { return process.env.DATABASE_URL ?? ""; },
+  get oAuthServerUrl() { return process.env.OAUTH_SERVER_URL ?? ""; },
+  get ownerOpenId() { return process.env.OWNER_OPEN_ID ?? ""; },
+  get isProduction() { return process.env.NODE_ENV === "production"; },
+  get forgeApiUrl() { return process.env.BUILT_IN_FORGE_API_URL ?? ""; },
+  get forgeApiKey() { return process.env.BUILT_IN_FORGE_API_KEY ?? ""; },
+  get grokApiKey() { return process.env.GROK_API_KEY ?? ""; },
+  get geminiApiKey() { return process.env.GEMINI_API_KEY ?? ""; },
 };

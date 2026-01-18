@@ -413,7 +413,26 @@ export async function analyzeExperience(text: string) {
  * Analyze company based on name, url, and scraped text
  */
 export async function analyzeCompany(name: string, url: string, text: string, dartInfo?: any, npsInfo?: any) {
-    let systemPrompt = "당신은 기업 분석 및 채용 전략 전문가입니다. 제공된 기업 홈페이지/뉴스 텍스트를 바탕으로 기업을 분석하여, 구직자에게 도움이 되는 핵심 정보를 구조화하여 제공합니다. 특히 '인재상', '최신 이슈', '사업 방향'에 집중하세요.";
+    let systemPrompt = `당신은 기업 분석 및 채용 전략 전문가입니다.
+제공된 기업 홈페이지/뉴스 텍스트를 바탕으로 기업을 분석하여, 구직자에게 도움이 되는 핵심 정보를 JSON 형식으로 제공합니다.
+
+**중요: 모든 내용은 반드시 한국어로 작성하세요.**
+**중요: 반드시 아래 JSON 형식만 출력하세요. 다른 텍스트나 설명 없이 JSON만 출력해야 합니다.**
+
+출력 형식:
+{
+  "mission": "기업의 미션, 비전, 핵심 가치 (한국어)",
+  "ideal_candidate": ["인재상 키워드1", "인재상 키워드2", "인재상 키워드3"],
+  "business": ["주요 사업1", "주요 사업2", "주요 사업3"],
+  "recent_issues": ["최신 이슈1", "최신 이슈2", "최신 이슈3"],
+  "financials": "재무 상태 또는 성장성 요약 (한국어)",
+  "swot": {
+    "strength": "강점 (한국어)",
+    "weakness": "약점 (한국어)",
+    "opportunity": "기회 (한국어)",
+    "threat": "위협 (한국어)"
+  }
+}`;
 
     let content = `기업명: ${name}\nURL: ${url}\n\n`;
 
@@ -441,7 +460,7 @@ export async function analyzeCompany(name: string, url: string, text: string, da
         content += `\n`;
     }
 
-    content += `수집된 텍스트:\n${text.substring(0, 15000)}\n\n위 내용을 분석하여 인재상, 핵심 가치, 주요 사업, 최신 이슈, SWOT 분석 등을 정리해주세요.`;
+    content += `수집된 텍스트:\n${text.substring(0, 15000)}\n\n위 내용을 분석하세요. **반드시 JSON 형식으로만 응답하세요.**`;
 
     const messages: Message[] = [
         {
@@ -454,46 +473,42 @@ export async function analyzeCompany(name: string, url: string, text: string, da
         }
     ];
 
-    const result = await invokeLLM({
-        messages,
-        outputSchema: {
-            name: "company_analysis",
-            schema: {
-                type: "object",
-                properties: {
-                    mission: { type: "string", description: "기업의 미션, 비전, 핵심 가치" },
-                    ideal_candidate: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "인재상 키워드 (3~5개)"
-                    },
-                    business: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "주요 사업 분야 및 제품/서비스"
-                    },
-                    recent_issues: {
-                        type: "array",
-                        items: { type: "string" },
-                        description: "최근 주요 이슈, 뉴스, 성과 (텍스트에 없으면 일반적인 업계 동향 추론)"
-                    },
-                    financials: { type: "string", description: "재무 상태 또는 성장성 요약 (텍스트에 없으면 '정보 없음')" },
-                    swot: {
-                        type: "object",
-                        properties: {
-                            strength: { type: "string", description: "강점" },
-                            weakness: { type: "string", description: "약점" },
-                            opportunity: { type: "string", description: "기회" },
-                            threat: { type: "string", description: "위협" }
-                        },
-                        required: ["strength", "weakness", "opportunity", "threat"]
-                    }
-                },
-                required: ["mission", "ideal_candidate", "business", "recent_issues", "financials", "swot"]
-            }
-        }
-    });
+    const result = await invokeLLM({ messages });
+    const responseText = result.choices[0].message.content as string;
 
-    return JSON.parse(result.choices[0].message.content as string);
+    // Robust JSON extraction - handle markdown code blocks and raw JSON
+    let jsonStr = responseText;
+
+    // Try to extract JSON from markdown code block
+    const jsonBlockMatch = responseText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonBlockMatch) {
+        jsonStr = jsonBlockMatch[1].trim();
+    } else {
+        // Try to find raw JSON object
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+            jsonStr = jsonMatch[0];
+        }
+    }
+
+    try {
+        return JSON.parse(jsonStr);
+    } catch (e) {
+        // Fallback: return a default structure with the raw response
+        console.error("Failed to parse JSON response:", e);
+        return {
+            mission: "분석 결과를 파싱하지 못했습니다. 원문: " + responseText.substring(0, 500),
+            ideal_candidate: ["분석 실패"],
+            business: ["분석 실패"],
+            recent_issues: ["분석 실패"],
+            financials: "분석 실패",
+            swot: {
+                strength: "분석 실패",
+                weakness: "분석 실패",
+                opportunity: "분석 실패",
+                threat: "분석 실패"
+            }
+        };
+    }
 }
 
