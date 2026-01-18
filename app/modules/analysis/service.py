@@ -25,6 +25,7 @@ from langchain_core.output_parsers import PydanticOutputParser
 from langchain_core.pydantic_v1 import BaseModel, Field
 
 from app.modules.analysis.models import AnalysisSession
+from app.modules.analysis.extraction_service import extract_document
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -59,16 +60,13 @@ class AnalysisService:
         with open(file_path, "wb") as f:
             f.write(content)
             
-        # 2. Extract Text (Simplistic for now, can extend to PDF/Images using LearningService logic later)
-        # Using a simple text extraction for POC if text based, or just placeholder if binary.
-        # Ideally we reuse the 'ingest' logic from Learning module if it exists and is decoupled.
-        # For now, let's assume text/pdf processing is handled or add a simple loader.
-        text_content = ""
-        if file.filename.endswith(".txt"):
-             text_content = content.decode("utf-8")
-        else:
-            # Placeholder for PDF/Docx extraction - To be implemented or integrated
-            text_content = "File content extraction pending..." 
+        # 2. Extract Text using Dual-Path Extraction Pipeline
+        # Uses Docling (Layer 1) + Native parsers (Layer 2) with LLM repair
+        extraction_result = extract_document(file_path, llm=self.llm)
+        text_content = extraction_result.text
+        
+        # Store extraction metadata for debugging/analysis
+        extraction_metadata = extraction_result.to_dict()
 
         # 3. Create Session DB Entry
         session = AnalysisSession(
