@@ -209,6 +209,64 @@ export const appRouter = router({
           characteristics: JSON.stringify(characteristics),
         });
 
+        // --- Collective Intelligence: Aggregate style PATTERNS only (no content) ---
+        // Extract only structural/format patterns, NEVER the actual experiences/content
+        try {
+          const { getAdminUserId } = await import("./auth");
+          const { createWritingStyleProfile: createAdminStyle, getWritingStyleProfilesByUserId } = await import("./db");
+
+          const adminId = getAdminUserId();
+          const adminStyles = await getWritingStyleProfilesByUserId(adminId);
+
+          // Find or create the "Collective Patterns" style for admin
+          let collectiveStyle = adminStyles.find(s => s.name === '_collective_writing_patterns');
+
+          // Build aggregated patterns (ONLY format/structure, NO content)
+          const newPatterns = {
+            tones: [characteristics.tone],
+            sentence_structures: [characteristics.sentence_structure],
+            key_patterns: characteristics.key_patterns || [],
+            strengths: characteristics.strengths || [],
+          };
+
+          if (collectiveStyle) {
+            // Merge with existing patterns
+            const existing = JSON.parse(collectiveStyle.characteristics || '{}');
+            const merged = {
+              tones: [...new Set([...(existing.tones || []), ...newPatterns.tones])].slice(0, 20),
+              sentence_structures: [...new Set([...(existing.sentence_structures || []), ...newPatterns.sentence_structures])].slice(0, 20),
+              key_patterns: [...new Set([...(existing.key_patterns || []), ...newPatterns.key_patterns])].slice(0, 50),
+              strengths: [...new Set([...(existing.strengths || []), ...newPatterns.strengths])].slice(0, 50),
+              updated_at: new Date().toISOString(),
+              contribution_count: (existing.contribution_count || 0) + 1,
+            };
+
+            // Update admin's collective style
+            const { updateWritingStyleProfile } = await import("./db");
+            await updateWritingStyleProfile(collectiveStyle.id, {
+              characteristics: JSON.stringify(merged),
+            });
+            console.log('[CollectiveIntelligence] Updated patterns:', merged.contribution_count, 'contributions');
+          } else {
+            // Create new collective style for admin
+            await createAdminStyle({
+              userId: adminId,
+              name: '_collective_writing_patterns',
+              description: '시스템에서 자동 수집한 글쓰기 패턴 (형식/구조만, 내용 없음)',
+              trainingText: '(자동 생성 - 패턴만 저장)', // No actual content stored
+              characteristics: JSON.stringify({
+                ...newPatterns,
+                updated_at: new Date().toISOString(),
+                contribution_count: 1,
+              }),
+            });
+            console.log('[CollectiveIntelligence] Created collective patterns profile');
+          }
+        } catch (aggError) {
+          console.error('[CollectiveIntelligence] Aggregation failed:', aggError);
+          // Don't fail the main operation
+        }
+
         return { success: true, id: (result as any).insertId };
       }),
 
@@ -218,6 +276,16 @@ export const appRouter = router({
         const { deleteWritingStyleProfile } = await import("./db");
         await deleteWritingStyleProfile(input);
         return { success: true };
+      }),
+
+    analyzePreview: publicProcedure
+      .input(z.object({
+        text: z.string().min(10),
+      }))
+      .mutation(async ({ input }) => {
+        const { analyzeWritingStyle } = await import("./llm-helpers");
+        const characteristics = await analyzeWritingStyle(input.text);
+        return characteristics;
       }),
   }),
 
@@ -260,6 +328,16 @@ export const appRouter = router({
         const { deleteInterviewStyleProfile } = await import("./db");
         await deleteInterviewStyleProfile(input);
         return { success: true };
+      }),
+
+    analyzePreview: publicProcedure
+      .input(z.object({
+        text: z.string().min(10),
+      }))
+      .mutation(async ({ input }) => {
+        const { analyzeInterviewStyle } = await import("./llm-helpers");
+        const characteristics = await analyzeInterviewStyle(input.text);
+        return characteristics;
       }),
   }),
 
@@ -315,6 +393,21 @@ export const appRouter = router({
           }
         }
 
+        // Get collective patterns from admin (format/structure only, no content)
+        let collectivePatterns = undefined;
+        try {
+          const { getAdminUserId } = await import("./auth");
+          const { getWritingStyleProfilesByUserId } = await import("./db");
+          const adminId = getAdminUserId();
+          const adminStyles = await getWritingStyleProfilesByUserId(adminId);
+          const collectiveStyle = adminStyles.find(s => s.name === '_collective_writing_patterns');
+          if (collectiveStyle?.characteristics) {
+            collectivePatterns = JSON.parse(collectiveStyle.characteristics);
+          }
+        } catch (e) {
+          // Silently continue without collective patterns
+        }
+
         // Generate cover letter with character count constraint and RAG
         const result = await generateCoverLetter({
           prompt: input.prompt,
@@ -326,6 +419,7 @@ export const appRouter = router({
           jdSummary: input.context?.jd_summary,
           experienceContext, // Pass STAR summary
           corporateContext, // Pass Corporate Analysis
+          collectivePatterns, // Pass admin's aggregated patterns (format/structure only)
         });
 
         // Calculate actual character count (excluding spaces)

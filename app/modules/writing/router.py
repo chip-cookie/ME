@@ -2,7 +2,7 @@
 Writing Module Router
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -59,3 +59,33 @@ def get_session(session_id: int, db: Session = Depends(get_db)):
     if not session:
         raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다")
     return session
+
+
+@router.post("/style/upload")
+async def upload_style_file(
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """
+    스타일 분석을 위한 파일을 업로드하고 텍스트를 추출합니다.
+    """
+    # 임시 파일로 저장
+    import os
+    import shutil
+    from app.core.config import get_settings
+    
+    settings = get_settings()
+    temp_dir = settings.data_dir / "temp_uploads"
+    os.makedirs(temp_dir, exist_ok=True)
+    
+    file_path = os.path.join(temp_dir, file.filename)
+    with open(file_path, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+        
+    # 추출 실행 (Dual-Path)
+    # Using dynamic import to avoid circular dependency if any
+    from app.modules.analysis.extraction_service import extract_document
+    result = extract_document(file_path)
+    
+    # 텍스트 반환 (프론트엔드에서 LLM 분석 호출)
+    return {"text": result.text, "filename": file.filename}

@@ -78,8 +78,8 @@ class DualPathExtractor:
     def __init__(self, llm: Optional[Ollama] = None):
         """Initialize extractor with optional LLM for repair."""
         self.llm = llm or Ollama(
-            base_url=settings.OLLAMA_BASE_URL,
-            model=settings.OLLAMA_MODEL,
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_model,
             temperature=0.1
         )
         

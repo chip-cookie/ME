@@ -262,6 +262,12 @@ export async function deleteWritingStyleProfile(id: number) {
   await db.delete(writingStyleProfiles).where(eq(writingStyleProfiles.id, id));
 }
 
+export async function updateWritingStyleProfile(id: number, updates: { characteristics?: string }) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(writingStyleProfiles).set(updates).where(eq(writingStyleProfiles.id, id));
+}
+
 /**
  * Interview Style Profiles queries
  */

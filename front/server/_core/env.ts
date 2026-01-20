@@ -11,4 +11,7 @@ export const ENV = {
   get forgeApiKey() { return process.env.BUILT_IN_FORGE_API_KEY ?? ""; },
   get grokApiKey() { return process.env.GROK_API_KEY ?? ""; },
   get geminiApiKey() { return process.env.GEMINI_API_KEY ?? ""; },
+  // vLLM configuration for local style analysis
+  get vllmBaseUrl() { return process.env.VLLM_BASE_URL ?? "http://localhost:8080"; },
+  get vllmModel() { return process.env.VLLM_MODEL ?? "google/gemma-3-4b-it"; },
 };

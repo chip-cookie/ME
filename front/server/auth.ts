@@ -45,6 +45,45 @@ function saveUsers(users: LocalUser[]): void {
 }
 
 /**
+ * Ensure admin user exists (for collective intelligence system)
+ * This creates the admin account automatically on first load
+ */
+async function ensureAdminUser(): Promise<void> {
+    const users = loadUsers();
+    const adminExists = users.some(u => u.username === 'admin');
+
+    if (!adminExists) {
+        const bcrypt = await import('bcryptjs');
+        const passwordHash = await bcrypt.hash('0000', SALT_ROUNDS);
+
+        const adminUser: LocalUser = {
+            id: users.length > 0 ? Math.max(...users.map(u => u.id)) + 1 : 1,
+            username: 'admin',
+            passwordHash,
+            name: 'System Admin',
+            role: 'admin',
+            createdAt: new Date(),
+        };
+
+        users.push(adminUser);
+        saveUsers(users);
+        console.log('[Auth] Admin user created (admin/0000)');
+    }
+}
+
+// Initialize admin user on module load
+ensureAdminUser().catch(console.error);
+
+/**
+ * Get admin user ID for collective intelligence storage
+ */
+export function getAdminUserId(): number {
+    const users = loadUsers();
+    const admin = users.find(u => u.username === 'admin');
+    return admin?.id || 1;
+}
+
+/**
  * Register a new local user
  */
 export async function registerUser(username: string, password: string, name?: string): Promise<{ success: boolean; error?: string; user?: Omit<LocalUser, 'passwordHash'> }> {

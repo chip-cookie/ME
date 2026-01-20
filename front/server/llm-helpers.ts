@@ -1,13 +1,24 @@
-import { invokeLLM, Message } from "./_core/llm";
+import { invokeLLM, invokeVLLM, Message } from "./_core/llm";
 
 /**
  * Analyze writing style from cover letter text
+ * Uses vLLM (local) as primary, Gemini as fallback
  */
 export async function analyzeWritingStyle(text: string) {
     const messages: Message[] = [
         {
             role: "system",
-            content: "당신은 자기소개서 글쓰기 스타일을 분석하는 전문가입니다. 주어진 자소서 텍스트의 문체, 어조, 표현 방식을 분석하여 JSON 형태로 반환하세요."
+            content: `당신은 자기소개서 글쓰기 스타일을 분석하는 전문가입니다. 주어진 자소서 텍스트의 문체, 어조, 표현 방식을 분석하여 JSON 형태로 반환하세요.
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{
+  "suggested_name": "스타일 이름",
+  "tone": "어조",
+  "vocabulary_level": "어휘 수준",
+  "sentence_structure": "문장 구조",
+  "key_patterns": ["패턴1", "패턴2"],
+  "strengths": ["강점1", "강점2"]
+}`
         },
         {
             role: "user",
@@ -15,35 +26,57 @@ export async function analyzeWritingStyle(text: string) {
         }
     ];
 
-    const result = await invokeLLM({
-        messages,
-        outputSchema: {
-            name: "writing_style_analysis",
-            schema: {
-                type: "object",
-                properties: {
-                    tone: { type: "string", description: "어조 (공식적, 진솔한, 열정적 등)" },
-                    vocabulary_level: { type: "string", description: "어휘 수준 (전문적, 일반적 등)" },
-                    sentence_structure: { type: "string", description: "문장 구조 특징 (간결함, 상세함 등)" },
-                    key_patterns: { type: "array", items: { type: "string" }, description: "주요 표현 패턴" },
-                    strengths: { type: "array", items: { type: "string" }, description: "강점" },
-                },
-                required: ["tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
+    // Try vLLM first (local), fallback to Gemini on error
+    try {
+        const result = await invokeVLLM({ messages, temperature: 0.3 });
+        const content = result.choices[0].message.content as string;
+        // Extract JSON from response (handle markdown code blocks)
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+        return JSON.parse(jsonStr);
+    } catch (vllmError) {
+        console.log("[analyzeWritingStyle] vLLM failed, falling back to Gemini...");
+        // Fallback to Gemini with structured output
+        const result = await invokeLLM({
+            messages,
+            outputSchema: {
+                name: "writing_style_analysis",
+                schema: {
+                    type: "object",
+                    properties: {
+                        suggested_name: { type: "string", description: "스타일의 특징을 잘 나타내는 이름" },
+                        tone: { type: "string", description: "어조" },
+                        vocabulary_level: { type: "string", description: "어휘 수준" },
+                        sentence_structure: { type: "string", description: "문장 구조 특징" },
+                        key_patterns: { type: "array", items: { type: "string" }, description: "주요 표현 패턴" },
+                        strengths: { type: "array", items: { type: "string" }, description: "강점" },
+                    },
+                    required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
+                }
             }
-        }
-    });
-
-    return JSON.parse(result.choices[0].message.content as string);
+        });
+        return JSON.parse(result.choices[0].message.content as string);
+    }
 }
 
 /**
  * Analyze interview answer style (separate DB)
+ * Uses vLLM (local) as primary, Gemini as fallback
  */
 export async function analyzeInterviewStyle(text: string) {
     const messages: Message[] = [
         {
             role: "system",
-            content: "당신은 면접 답변 스타일을 분석하는 전문가입니다. 주어진 면접 답변 예시의 특징을 분석하여 JSON 형태로 반환하세요."
+            content: `당신은 면접 답변 스타일을 분석하는 전문가입니다. 주어진 면접 답변 예시의 특징을 분석하여 JSON 형태로 반환하세요.
+
+반드시 아래 JSON 형식으로만 응답하세요:
+{
+  "suggested_name": "스타일 이름",
+  "answer_structure": "답변 구조",
+  "communication_style": "커뮤니케이션 스타일",
+  "emphasis_points": ["포인트1", "포인트2"],
+  "key_phrases": ["표현1", "표현2"]
+}`
         },
         {
             role: "user",
@@ -51,24 +84,36 @@ export async function analyzeInterviewStyle(text: string) {
         }
     ];
 
-    const result = await invokeLLM({
-        messages,
-        outputSchema: {
-            name: "interview_style_analysis",
-            schema: {
-                type: "object",
-                properties: {
-                    answer_structure: { type: "string", description: "답변 구조 (STAR, 결론먼저 등)" },
-                    communication_style: { type: "string", description: "커뮤니케이션 스타일" },
-                    emphasis_points: { type: "array", items: { type: "string" }, description: "강조하는 포인트" },
-                    key_phrases: { type: "array", items: { type: "string" }, description: "자주 사용하는 표현" },
-                },
-                required: ["answer_structure", "communication_style", "emphasis_points", "key_phrases"]
+    // Try vLLM first (local), fallback to Gemini on error
+    try {
+        const result = await invokeVLLM({ messages, temperature: 0.3 });
+        const content = result.choices[0].message.content as string;
+        // Extract JSON from response (handle markdown code blocks)
+        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+        const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+        return JSON.parse(jsonStr);
+    } catch (vllmError) {
+        console.log("[analyzeInterviewStyle] vLLM failed, falling back to Gemini...");
+        // Fallback to Gemini with structured output
+        const result = await invokeLLM({
+            messages,
+            outputSchema: {
+                name: "interview_style_analysis",
+                schema: {
+                    type: "object",
+                    properties: {
+                        suggested_name: { type: "string", description: "스타일의 특징을 잘 나타내는 이름" },
+                        answer_structure: { type: "string", description: "답변 구조" },
+                        communication_style: { type: "string", description: "커뮤니케이션 스타일" },
+                        emphasis_points: { type: "array", items: { type: "string" }, description: "강조하는 포인트" },
+                        key_phrases: { type: "array", items: { type: "string" }, description: "자주 사용하는 표현" },
+                    },
+                    required: ["suggested_name", "answer_structure", "communication_style", "emphasis_points", "key_phrases"]
+                }
             }
-        }
-    });
-
-    return JSON.parse(result.choices[0].message.content as string);
+        });
+        return JSON.parse(result.choices[0].message.content as string);
+    }
 }
 
 /**
@@ -142,8 +187,28 @@ export async function generateCoverLetter(params: {
     jdSummary?: string;
     experienceContext?: any; // STAR summary
     corporateContext?: any; // Corporate Analysis
+    collectivePatterns?: any; // Admin's aggregated writing patterns (format/structure only)
 }) {
     let systemPrompt = "당신은 자기소개서 작성 전문가입니다.";
+
+    // Add collective writing patterns from admin (quality baseline)
+    if (params.collectivePatterns) {
+        const cp = params.collectivePatterns;
+        systemPrompt += `\n\n**우수한 글쓰기 패턴 (참고용 - 형식/구조만, 내용 복사 금지):**`;
+        if (cp.tones?.length > 0) {
+            systemPrompt += `\n- 효과적인 어조 예시: ${cp.tones.slice(0, 5).join(', ')}`;
+        }
+        if (cp.sentence_structures?.length > 0) {
+            systemPrompt += `\n- 추천 문장 구조: ${cp.sentence_structures.slice(0, 5).join(', ')}`;
+        }
+        if (cp.key_patterns?.length > 0) {
+            systemPrompt += `\n- 효과적인 표현 기법: ${cp.key_patterns.slice(0, 8).join(', ')}`;
+        }
+        if (cp.strengths?.length > 0) {
+            systemPrompt += `\n- 강조할 수 있는 포인트: ${cp.strengths.slice(0, 5).join(', ')}`;
+        }
+        systemPrompt += `\n\n위 패턴은 참고용이며, 사용자의 고유한 경험과 표현으로 작성해야 합니다.`;
+    }
 
     if (params.style) {
         systemPrompt += `\n\n사용자의 글쓰기 스타일:\n- 어조: ${params.style.tone}\n- 어휘 수준: ${params.style.vocabulary_level}\n- 문장 구조: ${params.style.sentence_structure}`;

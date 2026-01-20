@@ -276,6 +276,46 @@ const normalizeResponseFormat = ({
   };
 };
 
+/**
+ * Invoke local vLLM server for style analysis (primary for style tasks)
+ * Uses OpenAI-compatible API format
+ */
+export async function invokeVLLM(params: {
+  messages: Message[];
+  temperature?: number;
+}): Promise<InvokeResult> {
+  const url = `${ENV.vllmBaseUrl}/v1/chat/completions`;
+  const model = ENV.vllmModel;
+
+  const payload = {
+    model,
+    messages: params.messages.map(normalizeMessage),
+    temperature: params.temperature ?? 0.7,
+    max_tokens: 2048,
+  };
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.warn(`[vLLM] Request failed: ${response.status} - ${errorText}`);
+      throw new Error(`vLLM request failed: ${response.status}`);
+    }
+
+    return (await response.json()) as InvokeResult;
+  } catch (error) {
+    console.warn("[vLLM] Connection failed, will fallback to Gemini:", error);
+    throw error;
+  }
+}
+
 export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
   assertApiKey();
 
