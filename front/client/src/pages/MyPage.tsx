@@ -75,7 +75,8 @@ export default function MyPage() {
             const formData = new FormData();
             formData.append('file', file);
 
-            const response = await fetch('http://localhost:8000/api/writing/style/upload', {
+            const API_BASE = import.meta.env.VITE_PYTHON_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${API_BASE}/api/writing/style/upload`, {
                 method: 'POST',
                 body: formData,
             });
