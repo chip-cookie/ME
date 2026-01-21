@@ -80,8 +80,8 @@ export default function StyleLearning() {
             formData.append('file', file);
 
             const uploadEndpoint = activeTab === 'writing'
-                ? '/api/writing/style/upload'
-                : '/api/interview/style/upload';
+                ? 'http://localhost:8000/api/writing/style/upload'
+                : 'http://localhost:8000/api/interview/style/upload';
 
             const response = await fetch(uploadEndpoint, {
                 method: 'POST',

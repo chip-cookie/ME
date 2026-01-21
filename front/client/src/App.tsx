@@ -16,6 +16,7 @@ import BlogPost from "./pages/BlogPost";
 import Login from "./pages/Login";
 import SentimentAnalysis from "./pages/SentimentAnalysis";
 import CorporateAnalysis from "./pages/CorporateAnalysis";
+import MyPage from "./pages/MyPage";
 
 function Router() {
   // make sure to consider if you need authentication for certain routes
@@ -29,6 +30,7 @@ function Router() {
       <Route path={"/analysis"} component={JDAnalysis} />
       <Route path={"/sentiment"} component={SentimentAnalysis} />
       <Route path={"/corporate"} component={CorporateAnalysis} />
+      <Route path={"/my"} component={MyPage} />
       <Route path={"/login"} component={Login} />
       <Route path={"/blog"} component={Blog} />
       <Route path={"/blog/:slug"} component={BlogPost} />

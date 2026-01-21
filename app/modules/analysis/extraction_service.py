@@ -22,16 +22,46 @@ except ImportError:
     DOCLING_AVAILABLE = False
 
 # Layer 2: Native Parsers
-from pypdf import PdfReader
-from docx import Document as DocxDocument
-from PIL import Image
-import pytesseract
+try:
+    from pypdf import PdfReader
+    PYPDF_AVAILABLE = True
+except ImportError:
+    PYPDF_AVAILABLE = False
+
+try:
+    from docx import Document as DocxDocument
+    DOCX_AVAILABLE = True
+except ImportError:
+    DOCX_AVAILABLE = False
+
+# HWP (한글) Support
+try:
+    from pyhwpx import Hwp
+    HWP_AVAILABLE = True
+except ImportError:
+    try:
+        from hwp_extract import Hwp5File
+        HWP_AVAILABLE = True
+    except ImportError:
+        HWP_AVAILABLE = False
+
+try:
+    from PIL import Image
+    import pytesseract
+    OCR_AVAILABLE = True
+except ImportError:
+    OCR_AVAILABLE = False
 
 # Similarity Calculation
 from rapidfuzz import fuzz
 
-# LLM for repair (using existing setup)
-from langchain_community.llms import Ollama
+# LLM for repair
+try:
+    from langchain_community.llms import Ollama
+    OLLAMA_AVAILABLE = True
+except ImportError:
+    OLLAMA_AVAILABLE = False
+
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -75,13 +105,22 @@ class DualPathExtractor:
     IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff'}
     DOCUMENT_EXTENSIONS = {'.pdf', '.docx', '.doc', '.txt', '.html', '.pptx'}
     
-    def __init__(self, llm: Optional[Ollama] = None):
+    def __init__(self, llm: Optional[Any] = None):
         """Initialize extractor with optional LLM for repair."""
-        self.llm = llm or Ollama(
-            base_url=settings.ollama_base_url,
-            model=settings.ollama_model,
-            temperature=0.1
-        )
+        if llm:
+            self.llm = llm
+        elif OLLAMA_AVAILABLE:
+            try:
+                self.llm = Ollama(
+                    base_url=settings.ollama_base_url,
+                    model=settings.ollama_model,
+                    temperature=0.1
+                )
+            except Exception as e:
+                logger.warning(f"Failed to init Ollama: {e}")
+                self.llm = None
+        else:
+            self.llm = None
         
         # Docling converter (lazy init)
         self._docling_converter = None
@@ -167,11 +206,19 @@ class DualPathExtractor:
         
         try:
             if ext == '.pdf':
-                return self._extract_pdf_native(file_path)
+                if PYPDF_AVAILABLE:
+                    return self._extract_pdf_native(file_path)
+                return ExtractionResult(text="Error: pypdf library not installed", source="missing_dependency_pdf")
             elif ext == '.docx':
-                return self._extract_docx_native(file_path)
+                if DOCX_AVAILABLE:
+                    return self._extract_docx_native(file_path)
+                return ExtractionResult(text="Error: python-docx library not installed", source="missing_dependency_docx")
             elif ext == '.txt':
                 return self._extract_txt(file_path)
+            elif ext in ['.hwp', '.hwpx']:
+                if HWP_AVAILABLE:
+                    return self._extract_hwp_native(file_path)
+                return ExtractionResult(text="Error: pyhwpx library not installed", source="missing_dependency_hwp")
             else:
                 logger.warning(f"No native extractor for {ext}")
                 return ExtractionResult(text="", source="native_unsupported")
@@ -217,6 +264,55 @@ class DualPathExtractor:
             metadata={"paragraphs": len(doc.paragraphs)},
             source="native_docx"
         )
+    
+    def _extract_hwp_native(self, file_path: str) -> ExtractionResult:
+        """Extract HWP (한글) using pyhwpx or hwp_extract."""
+        try:
+            # Try pyhwpx first (more modern)
+            try:
+                from pyhwpx import Hwp
+                hwp = Hwp()
+                hwp.open(file_path)
+                text = hwp.get_text()
+                hwp.close()
+                return ExtractionResult(
+                    text=text,
+                    metadata={"format": "hwp"},
+                    source="native_pyhwpx"
+                )
+            except Exception:
+                pass
+            
+            # Fallback to hwp_extract
+            try:
+                from hwp_extract import Hwp5File
+                with Hwp5File(file_path) as hwp:
+                    text_parts = []
+                    for para in hwp.paragraphs():
+                        if para.text.strip():
+                            text_parts.append(para.text)
+                    return ExtractionResult(
+                        text="\n".join(text_parts),
+                        metadata={"format": "hwp5"},
+                        source="native_hwp_extract"
+                    )
+            except Exception:
+                pass
+            
+            # Final fallback: try reading as binary and extracting text
+            with open(file_path, 'rb') as f:
+                content = f.read()
+                # Simple text extraction from binary (basic fallback)
+                text = content.decode('utf-8', errors='ignore')
+                return ExtractionResult(
+                    text=text,
+                    metadata={"format": "hwp_binary"},
+                    source="native_hwp_fallback"
+                )
+                
+        except Exception as e:
+            logger.error(f"HWP extraction failed: {e}")
+            return ExtractionResult(text=f"HWP 추출 실패: {str(e)}", source="hwp_error")
     
     def _extract_txt(self, file_path: str) -> ExtractionResult:
         """Extract plain text file."""
@@ -299,6 +395,10 @@ class DualPathExtractor:
         similarity: float
     ) -> ExtractionResult:
         """Use LLM to reconcile divergent extractions."""
+        
+        if not self.llm:
+            # Fallback: prefer docling if available, else native
+            return docling_result if docling_result.text.strip() else native_result
         
         # Truncate for LLM context
         docling_text = docling_result.text[:3000]

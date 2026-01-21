@@ -26,37 +26,97 @@ export async function analyzeWritingStyle(text: string) {
         }
     ];
 
-    // Try vLLM first (local), fallback to Gemini on error
-    try {
-        const result = await invokeVLLM({ messages, temperature: 0.3 });
-        const content = result.choices[0].message.content as string;
-        // Extract JSON from response (handle markdown code blocks)
-        const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
-        const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
-        return JSON.parse(jsonStr);
-    } catch (vllmError) {
-        console.log("[analyzeWritingStyle] vLLM failed, falling back to Gemini...");
-        // Fallback to Gemini with structured output
-        const result = await invokeLLM({
-            messages,
-            outputSchema: {
-                name: "writing_style_analysis",
-                schema: {
-                    type: "object",
-                    properties: {
-                        suggested_name: { type: "string", description: "스타일의 특징을 잘 나타내는 이름" },
-                        tone: { type: "string", description: "어조" },
-                        vocabulary_level: { type: "string", description: "어휘 수준" },
-                        sentence_structure: { type: "string", description: "문장 구조 특징" },
-                        key_patterns: { type: "array", items: { type: "string" }, description: "주요 표현 패턴" },
-                        strengths: { type: "array", items: { type: "string" }, description: "강점" },
-                    },
-                    required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
-                }
+    // TEMPORARILY DISABLED: vLLM - using Gemini directly for debugging
+    // TODO: Re-enable vLLM once connectivity is confirmed
+    // try {
+    //     const result = await invokeVLLM({ messages, temperature: 0.3 });
+    //     const content = result.choices[0].message.content as string;
+    //     const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+    //     const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+    //     return JSON.parse(jsonStr);
+    // } catch (vllmError) {
+    //     console.log("[analyzeWritingStyle] vLLM failed, falling back to Gemini...");
+    // }
+
+    // Direct Gemini call
+    const result = await invokeLLM({
+        messages,
+        outputSchema: {
+            name: "writing_style_analysis",
+            schema: {
+                type: "object",
+                properties: {
+                    suggested_name: { type: "string", description: "스타일의 특징을 잘 나타내는 이름" },
+                    tone: { type: "string", description: "어조" },
+                    vocabulary_level: { type: "string", description: "어휘 수준" },
+                    sentence_structure: { type: "string", description: "문장 구조 특징" },
+                    key_patterns: { type: "array", items: { type: "string" }, description: "주요 표현 패턴" },
+                    strengths: { type: "array", items: { type: "string" }, description: "강점" },
+                },
+                required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
             }
-        });
-        return JSON.parse(result.choices[0].message.content as string);
-    }
+        }
+    });
+    return JSON.parse(result.choices[0].message.content as string);
+}
+
+/**
+ * Analyze experience text and extract STAR-format insights
+ * Returns: situation, action, result, achievement, lesson, core_value
+ */
+export async function analyzeExperience(text: string, analysisType: 'competency' | 'value' | 'pdf' | 'cover_letter' = 'competency') {
+    const typePrompts: Record<string, string> = {
+        competency: '역량 중심으로 분석하세요. 어떤 역량을 발휘했는지 강조하세요.',
+        value: '가치관 중심으로 분석하세요. 어떤 가치관이 드러나는지 강조하세요.',
+        pdf: '이력서/포트폴리오에서 추출된 내용을 분석하세요.',
+        cover_letter: '자소서에서 추출된 경험을 분석하세요.'
+    };
+
+    const messages: Message[] = [
+        {
+            role: "system",
+            content: `당신은 취업 준비생의 경험을 분석하는 전문 컨설턴트입니다. 
+${typePrompts[analysisType]}
+
+주어진 경험을 분석하여 다음 JSON 형식으로 반환하세요:
+{
+  "situation": "문제상황 또는 배경 (구체적으로)",
+  "action": "해결방법 또는 취한 행동",
+  "result": "구체적 결과 (수치 포함 가능)",
+  "achievement": "주요 성과",
+  "lesson": "배운 점",
+  "core_value": "핵심 가치관",
+  "category": "카테고리 (역량/가치관/성과/리더십/팀워크 중 하나)",
+  "summary": "한 줄 요약"
+}`
+        },
+        {
+            role: "user",
+            content: `다음 경험을 분석해주세요:\n\n${text}`
+        }
+    ];
+
+    const result = await invokeLLM({
+        messages,
+        outputSchema: {
+            name: "experience_analysis",
+            schema: {
+                type: "object",
+                properties: {
+                    situation: { type: "string", description: "문제상황 또는 배경" },
+                    action: { type: "string", description: "해결방법 또는 취한 행동" },
+                    result: { type: "string", description: "구체적 결과" },
+                    achievement: { type: "string", description: "주요 성과" },
+                    lesson: { type: "string", description: "배운 점" },
+                    core_value: { type: "string", description: "핵심 가치관" },
+                    category: { type: "string", description: "카테고리" },
+                    summary: { type: "string", description: "한 줄 요약" }
+                },
+                required: ["situation", "action", "result", "achievement", "lesson", "core_value", "category", "summary"]
+            }
+        }
+    });
+    return JSON.parse(result.choices[0].message.content as string);
 }
 
 /**
@@ -402,77 +462,7 @@ export async function generateInterviewQuestionsWithConsulting(params: {
     return parsed.questions;
 }
 
-/**
- * Analyze experience for sentiment, STAR, and personality
- */
-export async function analyzeExperience(text: string) {
-    const messages: Message[] = [
-        {
-            role: "system",
-            content: "당신은 자기소개서 소재 발굴 및 경험 분석 전문가입니다. 사용자의 경험을 듣고 STAR 기법(Situation, Task, Action, Result)으로 구조화하고, 해당 경험에서 드러나는 지원자의 성향과 강점을 분석합니다. 특히 사용자의 '감정'에 집중하여 분석을 수행하세요."
-        },
-        {
-            role: "user",
-            content: `다음 경험 내용을 분석하여 STAR 구조로 요약하고, 작성자의 성향(Personality)을 분석해주세요. 이때 감정(Sentiment) 분석을 통해 당시 느꼈을 기분이나 태도를 함께 고려해주세요:\n\n${text}`
-        }
-    ];
 
-    const result = await invokeLLM({
-        messages,
-        outputSchema: {
-            name: "experience_analysis",
-            schema: {
-                type: "object",
-                properties: {
-                    star_summary: {
-                        type: "object",
-                        properties: {
-                            S: { type: "string", description: "Situation (상황)" },
-                            T: { type: "string", description: "Task (문제/과제)" },
-                            A: { type: "string", description: "Action (행동)" },
-                            R: { type: "string", description: "Result (결과)" }
-                        },
-                        required: ["S", "T", "A", "R"]
-                    },
-                    personality: {
-                        type: "object",
-                        properties: {
-                            keywords: {
-                                type: "array",
-                                items: { type: "string" },
-                                description: "성향 키워드 (해시태그)"
-                            },
-                            score: {
-                                type: "object",
-                                properties: {
-                                    analytical: { type: "number", description: "분석적 사고 (0-100)" },
-                                    creativity: { type: "number", description: "창의성 (0-100)" },
-                                    leadership: { type: "number", description: "리더십 (0-100)" },
-                                    empathy: { type: "number", description: "공감 능력 (0-100)" },
-                                    persistence: { type: "number", description: "끈기/집요함 (0-100)" }
-                                },
-                                required: ["analytical", "creativity", "leadership", "empathy", "persistence"]
-                            },
-                            comment: { type: "string", description: "성향 분석 코멘트" },
-                            strengths: {
-                                type: "string",
-                                description: "해당 경험에서 드러난 성격의 장점 (구체적으로)"
-                            },
-                            weaknesses: {
-                                type: "string",
-                                description: "해당 경험에서 드러난 성격의 단점 또는 보완점 (구체적으로)"
-                            }
-                        },
-                        required: ["keywords", "score", "comment", "strengths", "weaknesses"]
-                    }
-                },
-                required: ["star_summary", "personality"]
-            }
-        }
-    });
-
-    return JSON.parse(result.choices[0].message.content as string);
-}
 
 /**
  * Analyze company based on name, url, and scraped text

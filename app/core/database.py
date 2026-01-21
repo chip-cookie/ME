@@ -14,9 +14,18 @@ settings = get_settings()
 # 데이터 디렉토리 생성
 Path(settings.db_dir).mkdir(parents=True, exist_ok=True)
 
+# Handle MySQL connection string for pymysql
+db_url = settings.database_url
+connect_args = {}
+
+if db_url.startswith("sqlite"):
+    connect_args = {"check_same_thread": False}
+elif db_url.startswith("mysql://"):
+    db_url = db_url.replace("mysql://", "mysql+pymysql://")
+
 engine = create_engine(
-    settings.database_url,
-    connect_args={"check_same_thread": False}
+    db_url,
+    connect_args=connect_args
 )
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)

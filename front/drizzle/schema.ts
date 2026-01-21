@@ -229,3 +229,21 @@ export const corporateAnalysis = mysqlTable("corporate_analysis", {
 
 export type CorporateAnalysis = typeof corporateAnalysis.$inferSelect;
 export type InsertCorporateAnalysis = typeof corporateAnalysis.$inferInsert;
+
+/**
+ * Experiences table - Stores user experiences with AI analysis for cover letter generation
+ */
+export const experiences = mysqlTable("experiences", {
+  id: int("id").autoincrement().primaryKey(),
+  userId: int("userId").notNull(),
+  title: varchar("title", { length: 255 }).notNull(),
+  category: varchar("category", { length: 50 }), // 역량, 가치관, 성과, 리더십 등
+  content: text("content").notNull(), // 원본 경험 텍스트
+  analysisType: varchar("analysisType", { length: 50 }), // competency, value, pdf, cover_letter
+  analysis: json("analysis"), // JSON: { situation, action, result, achievement, lesson, core_value }
+  createdAt: timestamp("createdAt").defaultNow().notNull(),
+  updatedAt: timestamp("updatedAt").defaultNow().onUpdateNow().notNull(),
+});
+
+export type Experience = typeof experiences.$inferSelect;
+export type InsertExperience = typeof experiences.$inferInsert;

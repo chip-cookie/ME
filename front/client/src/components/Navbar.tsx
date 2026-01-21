@@ -7,7 +7,7 @@ import { getLoginUrl } from '@/const';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
-  const { isAuthenticated, logout } = useAuth();
+  const { isAuthenticated, user, logout } = useAuth();
   const [, setLocation] = useLocation();
 
   const toggleMenu = () => setIsOpen(!isOpen);
@@ -51,13 +51,22 @@ export default function Navbar() {
           {/* Desktop Auth Buttons */}
           <div className="hidden md:flex items-center space-x-4">
             {isAuthenticated ? (
-              <Button
-                onClick={() => logout()}
-                variant="outline"
-                className="text-accent border-accent hover:bg-accent hover:text-white"
-              >
-                Logout
-              </Button>
+              <>
+                <Button
+                  onClick={() => navigate('/my')}
+                  variant="ghost"
+                  className="text-foreground hover:bg-gray-100 mr-2 font-semibold"
+                >
+                  {(user as any)?.username || user?.name || 'My Page'}
+                </Button>
+                <Button
+                  onClick={() => logout()}
+                  variant="outline"
+                  className="text-accent border-accent hover:bg-accent hover:text-white"
+                >
+                  Logout
+                </Button>
+              </>
             ) : (
               <>
                 <a href={getLoginUrl()}>
@@ -107,16 +116,27 @@ export default function Navbar() {
             ))}
             <div className="pt-2 space-y-2">
               {isAuthenticated ? (
-                <Button
-                  onClick={() => {
-                    logout();
-                    setIsOpen(false);
-                  }}
-                  variant="outline"
-                  className="w-full text-accent border-accent"
-                >
-                  Logout
-                </Button>
+                <>
+                  <Button
+                    onClick={() => {
+                      navigate('/my');
+                    }}
+                    variant="ghost"
+                    className="w-full text-foreground justify-start mb-2 font-semibold"
+                  >
+                    {(user as any)?.username || user?.name || 'My Page'}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      logout();
+                      setIsOpen(false);
+                    }}
+                    variant="outline"
+                    className="w-full text-accent border-accent"
+                  >
+                    Logout
+                  </Button>
+                </>
               ) : (
                 <>
                   <a href={getLoginUrl()} className="block">

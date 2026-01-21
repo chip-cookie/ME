@@ -15,6 +15,7 @@ import {
   interviewQuestions,
   experienceLogs,
   corporateAnalysis,
+  experiences,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
 
@@ -46,6 +47,7 @@ export {
   interviewQuestions,
   experienceLogs,
   corporateAnalysis,
+  experiences,
 } from "../drizzle/schema";
 
 export async function upsertUser(user: InsertUser): Promise<void> {
@@ -397,4 +399,49 @@ export async function getCorporateAnalysisById(id: number) {
   if (!db) return null;
   const result = await db.select().from(corporateAnalysis).where(eq(corporateAnalysis.id, id));
   return result[0] || null;
+}
+
+// Experiences
+export async function getExperiencesByUserId(userId: number) {
+  const db = await getDb();
+  if (!db) return [];
+  return await db.select().from(experiences).where(eq(experiences.userId, userId)).orderBy(experiences.createdAt);
+}
+
+export async function getExperienceById(id: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db.select().from(experiences).where(eq(experiences.id, id));
+  return result[0] || null;
+}
+
+export async function createExperience(data: {
+  userId: number;
+  title: string;
+  category?: string;
+  content: string;
+  analysisType?: string;
+  analysis?: Record<string, unknown>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not initialized");
+  return await db.insert(experiences).values(data);
+}
+
+export async function updateExperience(id: number, data: {
+  title?: string;
+  category?: string;
+  content?: string;
+  analysisType?: string;
+  analysis?: Record<string, unknown>;
+}) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not initialized");
+  return await db.update(experiences).set(data).where(eq(experiences.id, id));
+}
+
+export async function deleteExperience(id: number) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not initialized");
+  return await db.delete(experiences).where(eq(experiences.id, id));
 }

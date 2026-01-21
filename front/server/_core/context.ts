@@ -33,7 +33,8 @@ export async function createContext(
           loginMethod: "local",
           lastSignedIn: new Date(),
           createdAt: localUser.createdAt || new Date(),
-        } as User;
+          username: localUser.username,
+        } as any;
       }
     }
   } catch (error) {

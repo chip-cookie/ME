@@ -366,16 +366,18 @@ export const appRouter = router({
           styleInfo = await getWritingStyleProfileById(input.styleId);
         }
 
+
+
         // Get experience info if provided
-        let experienceContext = null;
+        let experienceContext = undefined;
         if (input.experienceId) {
+          const { getExperienceById } = await import("./db");
           const userId = ctx.user?.id || 0;
-          const logs = await getExperienceLogsByUserId(userId);
-          const log = logs.find(l => l.id === input.experienceId);
-          if (log && log.analysisResult) {
-            experienceContext = typeof log.analysisResult === 'string'
-              ? JSON.parse(log.analysisResult)
-              : log.analysisResult;
+          const exp = await getExperienceById(input.experienceId);
+
+          // Allow access if it's user's own experience
+          if (exp && exp.userId === userId) {
+            experienceContext = exp.analysis;
           }
         }
 
@@ -674,6 +676,89 @@ export const appRouter = router({
         const { deleteCorporateAnalysis } = await import("./db");
         await deleteCorporateAnalysis(input);
         return { success: true };
+      }),
+  }),
+
+  // Experiences - User experience management with AI analysis
+  experiences: router({
+    list: publicProcedure.query(async ({ ctx }) => {
+      const { getExperiencesByUserId } = await import("./db");
+      const userId = ctx.user?.id || 0;
+      return await getExperiencesByUserId(userId);
+    }),
+
+    get: publicProcedure
+      .input(z.number())
+      .query(async ({ input }) => {
+        const { getExperienceById } = await import("./db");
+        return await getExperienceById(input);
+      }),
+
+    create: publicProcedure
+      .input(z.object({
+        title: z.string().min(1),
+        content: z.string().min(10),
+        category: z.string().optional(),
+        analysisType: z.enum(['competency', 'value', 'pdf', 'cover_letter']).optional(),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const { createExperience } = await import("./db");
+        const { analyzeExperience } = await import("./llm-helpers");
+        const userId = ctx.user?.id || 0;
+
+        // Analyze experience with LLM
+        const analysis = await analyzeExperience(input.content, input.analysisType || 'competency');
+
+        await createExperience({
+          userId,
+          title: input.title,
+          content: input.content,
+          category: analysis.category || input.category,
+          analysisType: input.analysisType || 'competency',
+          analysis,
+        });
+
+        return { success: true, analysis };
+      }),
+
+    update: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        title: z.string().optional(),
+        content: z.string().optional(),
+        category: z.string().optional(),
+      }))
+      .mutation(async ({ input }) => {
+        const { updateExperience } = await import("./db");
+        const { id, ...data } = input;
+        await updateExperience(id, data);
+        return { success: true };
+      }),
+
+    delete: publicProcedure
+      .input(z.number())
+      .mutation(async ({ input }) => {
+        const { deleteExperience } = await import("./db");
+        await deleteExperience(input);
+        return { success: true };
+      }),
+
+    reanalyze: publicProcedure
+      .input(z.object({
+        id: z.number(),
+        analysisType: z.enum(['competency', 'value', 'pdf', 'cover_letter']),
+      }))
+      .mutation(async ({ input }) => {
+        const { getExperienceById, updateExperience } = await import("./db");
+        const { analyzeExperience } = await import("./llm-helpers");
+
+        const exp = await getExperienceById(input.id);
+        if (!exp) throw new Error("Experience not found");
+
+        const analysis = await analyzeExperience(exp.content, input.analysisType);
+        await updateExperience(input.id, { analysis, analysisType: input.analysisType });
+
+        return { success: true, analysis };
       }),
   }),
 });

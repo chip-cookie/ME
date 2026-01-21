@@ -159,40 +159,84 @@ flowchart TB
 
 ---
 
+### 5. 🗂️ 경험 관리 시스템 (Experience Management)
+- **나만의 경험 아카이빙**: 프로젝트, 인턴, 동아리 등 다양한 경험을 체계적으로 저장
+- **자동 파일 분석**: PDF, DOCX, **HWP** 파일을 업로드하면 AI가 내용을 자동 추출 및 요약
+- **STAR 자동 분류**: 입력된 경험을 LLM이 분석하여 STAR(Situation, Task, Action, Result) 프레임워크로 자동 변환 저장
+- **자소서 활용**: 저장된 경험을 자기소개서 작성 시 클릭 한 번으로 불러오기 (RAG)
+
+```mermaid
+flowchart LR
+    A[파일 업로드] --> B(텍스트 추출)
+    B --> C{LLM 분석}
+    
+    D[직접 입력] --> C
+    
+    C --> E[STAR 구조화]
+    E --> F[(DB 저장)]
+    
+    F --> G[자소서 작성 시 활용]
+    
+    style C fill:#FF6B6B
+    style F fill:#4ECDC4
+```
+
+---
+
 ## � 전체 시스템 아키텍처
 
 ```mermaid
 flowchart TB
-    subgraph Client["Frontend (React)"]
+    subgraph Client["Frontend (React + Vite)"]
         UI[사용자 인터페이스]
+        Store[Zustand/Context]
     end
     
-    subgraph Server["Backend (Express + tRPC)"]
-        API[tRPC Router]
-        LLM[LLM Helpers]
-        DB[Drizzle ORM]
+    subgraph NodeServer["Node.js Server (BFF)"]
+        TRPC[tRPC Router]
+        Auth[인증 (Auth.js)]
+        Drizzle[Drizzle ORM]
+        NodeLLM[LLM Helper (LangChain)]
     end
     
-    subgraph External["외부 서비스"]
-        DART[DART API]
-        NPS[NPS API]
-        FORGE[Forge LLM API]
+    subgraph PythonServer["Python Backend (FastAPI)"]
+        FastAPI[API Endpoints]
+        DocParser[문서 파서 (HWP/PDF)]
+        PyLLM[RAG / Vector Store]
     end
     
-    subgraph Database["Database"]
-        MYSQL[(MySQL)]
+    subgraph External["외부 AI/API"]
+        Gemini[Google Gemini]
+        Groq[Groq (Llama)]
+        DART[DART/NPS 공시정보]
     end
     
-    UI <--> API
-    API --> LLM
-    API --> DB
-    LLM --> FORGE
-    API --> DART
-    API --> NPS
-    DB --> MYSQL
+    subgraph Infr["인프라/DB"]
+        MySQL[(MySQL 8.0)]
+        vLLM[Local LLM (Optional)]
+    end
     
-    style FORGE fill:#FF6B6B
-    style MYSQL fill:#4ECDC4
+    %% Flow
+    UI <-->|"API (Queries/Mutations)"| TRPC
+    UI --"파일 업로드 (분석)"--> FastAPI
+    
+    TRPC --> Drizzle
+    TRPC --> NodeLLM
+    TRPC --> DART
+    
+    NodeLLM <--> Gemini
+    NodeLLM --> Groq
+    
+    FastAPI --> DocParser
+    FastAPI --> MySQL
+    FastAPI -.-> vLLM
+    
+    Drizzle <--> MySQL
+    
+    style Gemini fill:#FF6B6B
+    style MySQL fill:#4ECDC4
+    style PythonServer fill:#FFE66D
+    style NodeServer fill:#96CEB4
 ```
 
 ---
@@ -201,11 +245,12 @@ flowchart TB
 
 | 영역 | 기술 |
 |------|------|
-| **Backend** | Express.js, tRPC, Drizzle ORM |
+| **Backend (Node.js)** | Express.js, tRPC, Drizzle ORM |
+| **Backend (Python)** | **FastAPI** (File Processing/OCR), SQLAlchemy |
 | **Frontend** | React 19, Vite, TailwindCSS, Shadcn/ui |
-| **AI/LLM** | Gemini 2.5 Flash (via Forge API) |
-| **Database** | MySQL 8+ |
-| **External APIs** | DART(전자공시), NPS(국민연금공단) |
+| **AI/LLM** | Gemini 2.5 Flash, Groq (Llama 3), **vLLM (Local)** |
+| **Database** | MySQL 8.0+ |
+| **External APIs** | DART(전자공시), NPS(국민연금) |
 
 ---
 
@@ -213,41 +258,57 @@ flowchart TB
 
 ### 1. 사전 요구사항
 - Node.js 18+
-- MySQL 8+
+- Python 3.10+
+- MySQL 8.0+
 
 ### 2. 설치
 
+**Frontend (Node.js)**
 ```bash
-cd jasoS/front
+cd front
 npm install
+cd ..
+```
+
+**Backend (Python)**
+```bash
+# 가상환경 생성 및 라이브러리 설치
+python3 -m venv .venv
+source .venv/bin/activate  # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
 ```
 
 ### 3. 환경 변수 설정
-
 `.env` 파일을 프로젝트 루트에 생성:
 
 ```env
 # Database
 DATABASE_URL=mysql://user:password@localhost:3306/jasos
 
-# LLM (Forge API)
-BUILT_IN_FORGE_API_URL=https://forge.example.com
-BUILT_IN_FORGE_API_KEY=your_forge_api_key
+# LLM Keys
+GEMINI_API_KEY=your_gemini_key
+GROK_API_KEY=your_grok_key
+OLLAMA_BASE_URL=http://localhost:11434
 
 # External APIs
-DART_API_KEY=your_dart_api_key
-NPS_API_KEY=your_nps_api_key
-GROK_API_KEY=your_grok_api_key
+DART_API_KEY=your_dart_key
+NPS_API_KEY=your_nps_key
 ```
 
 ### 4. 실행
 
+**전체 시스템 시작 (권장)**
+```bash
+./start.sh
+# 백엔드(:8000) 실행 및 파일 감시
+```
+
+**프론트엔드 시작 (별도 터미널)**
 ```bash
 cd front
 npm run dev
+# 프론트엔드(:5173) 실행
 ```
-
-서버: `http://localhost:3000`
 
 ---
 
@@ -255,22 +316,20 @@ npm run dev
 
 ```
 jasoS/
-├── front/                      # TypeScript Full-Stack
+├── app/                        # Python Backend (FastAPI)
+│   ├── main.py                 # 앱 진입점
+│   ├── modules/                # 기능 모듈 (Learning, Analysis, etc.)
+│   └── core/                   # DB, Config 설정
+├── front/                      # TypeScript Frontend/BFF
 │   ├── client/src/pages/       # React Pages
-│   │   ├── CorporateAnalysis.tsx  # 기업 분석
-│   │   ├── Writing.tsx            # 자소서 작성
-│   │   ├── Interview.tsx          # 면접 준비
-│   │   └── SentimentAnalysis.tsx  # 경험 분석
-│   ├── server/
-│   │   ├── routers.ts          # tRPC API Routes
-│   │   ├── llm-helpers.ts      # LLM 호출 헬퍼
-│   │   ├── tools/
-│   │   │   ├── dart.ts         # DART API 클라이언트
-│   │   │   ├── nps.ts          # NPS API 클라이언트
-│   │   │   └── crawler.ts      # 웹 크롤러
-│   │   └── db.ts               # Database 쿼리
-│   └── drizzle/schema.ts       # DB 스키마
-├── docs/images/                # README 이미지
+│   │   ├── MyPage.tsx          # 경험 관리 (NEW)
+│   │   ├── Writing.tsx         # 자소서 작성
+│   │   └── CorporateAnalysis.tsx
+│   └── server/                 # tRPC Routers
+│       ├── routers.ts          # API Endpoints
+│       └── llm-helpers.ts      # Node.js LLM Logic
+├── requirements.txt            # Python 의존성
+├── start.sh                    # 서버 시작 스크립트
 └── .env                        # 환경 변수
 ```
 

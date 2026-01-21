@@ -33,7 +33,7 @@ export default function Writing() {
         retry: false,
         enabled: true,
     });
-    const { data: experiences = [] } = trpc.experience.list.useQuery(undefined, {
+    const { data: experiences = [] } = trpc.experiences.list.useQuery(undefined, {
         retry: false,
         enabled: true,
     });
@@ -248,12 +248,14 @@ export default function Writing() {
                                 >
                                     <option value="">선택 안 함 (직접 입력)</option>
                                     {experiences.map((exp: any) => {
-                                        const analysis = typeof exp.analysisResult === 'string'
-                                            ? JSON.parse(exp.analysisResult)
-                                            : exp.analysisResult;
-                                        const label = analysis?.star_summary?.T
-                                            ? `${analysis.star_summary.T.substring(0, 30)}...`
-                                            : `경험 #${exp.id}`;
+                                        // analysis column is already JSON type in DB/Drizzle
+                                        // but handled as unknown/any in frontend due to loose typing
+                                        const analysis = exp.analysis as any;
+                                        const label = analysis?.summary
+                                            ? `[${analysis.category || '기타'}] ${analysis.summary.substring(0, 30)}...`
+                                            : analysis?.situation
+                                                ? `[${analysis.category || '기타'}] ${analysis.situation.substring(0, 30)}...`
+                                                : exp.title;
 
                                         return (
                                             <option key={exp.id} value={exp.id}>
