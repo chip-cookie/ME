@@ -1,12 +1,11 @@
 {
-    "cleanUrls": true,
     "rewrites": [
         {
             "source": "/api/(.*)",
             "destination": "/api"
         },
         {
-            "source": "/((?!api/|_next/|assets/|favicon.ico).*)",
+            "source": "/((?!api/|assets/|favicon.ico|.*\\..*).*)",
             "destination": "/index.html"
         }
     ]
