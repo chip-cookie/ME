@@ -69,14 +69,13 @@ export default function Navbar() {
               </>
             ) : (
               <>
-                <a href={getLoginUrl()}>
-                  <Button
-                    variant="outline"
-                    className="text-accent border-accent hover:bg-accent hover:text-white"
-                  >
-                    Sign In
-                  </Button>
-                </a>
+                <Button
+                  onClick={() => navigate(getLoginUrl())}
+                  variant="outline"
+                  className="text-accent border-accent hover:bg-accent hover:text-white"
+                >
+                  Sign In
+                </Button>
                 <Button
                   onClick={() => navigate('/writing')}
                   className="bg-accent hover:bg-accent/90 text-white"
@@ -139,14 +138,13 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
-                  <a href={getLoginUrl()} className="block">
-                    <Button
-                      variant="outline"
-                      className="w-full text-accent border-accent"
-                    >
-                      Sign In
-                    </Button>
-                  </a>
+                  <Button
+                    onClick={() => navigate(getLoginUrl())}
+                    variant="outline"
+                    className="text-accent border-accent hover:bg-accent hover:text-white"
+                  >
+                    Sign In
+                  </Button>
                   <Button
                     onClick={() => navigate('/writing')}
                     className="w-full bg-accent hover:bg-accent/90 text-white"
