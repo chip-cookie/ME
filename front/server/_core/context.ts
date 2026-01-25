@@ -27,14 +27,15 @@ export async function createContext(
         user = {
           id: localUser.id,
           openId: `local_${localUser.id}`,
+          username: localUser.username,
           name: localUser.name,
           email: null,
-          role: localUser.role as any,
+          role: localUser.role,
           loginMethod: "local",
           lastSignedIn: new Date(),
           createdAt: localUser.createdAt || new Date(),
-          username: localUser.username,
-        } as any;
+          updatedAt: new Date(),
+        } as User;
       }
     }
   } catch (error) {

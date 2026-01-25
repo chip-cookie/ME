@@ -335,6 +335,81 @@ jasoS/
 
 ---
 
+## 🔐 인증 시스템 수정 (2026-01-25)
+
+### 변경 사항 요약
+
+#### 1. User 스키마 수정
+**파일**: `drizzle/schema.ts`
+
+- `users` 테이블에 `username` 필드 추가
+- 로컬 인증 시스템에서 사용하는 username을 User 타입에서 정식으로 지원
+
+```diff
+ openId: varchar("openId", { length: 64 }).notNull().unique(),
++/** Username for local authentication */
++username: varchar("username", { length: 64 }),
+ name: text("name"),
+```
+
+---
+
+#### 2. Context 타입 변환 수정
+**파일**: `server/_core/context.ts`
+
+- `username` 필드를 올바른 위치에 배치
+- `updatedAt` 필드 추가 (스키마에서 notNull로 정의됨)
+- `as any` 타입 캐스팅을 `as User`로 변경하여 타입 안전성 향상
+
+```diff
+ user = {
+   id: localUser.id,
+   openId: `local_${localUser.id}`,
++  username: localUser.username,
+   name: localUser.name,
+   email: null,
+-  role: localUser.role as any,
++  role: localUser.role,
+   loginMethod: "local",
+   lastSignedIn: new Date(),
+   createdAt: localUser.createdAt || new Date(),
+-  username: localUser.username,
+-} as any;
++  updatedAt: new Date(),
++} as User;
+```
+
+---
+
+#### 수정된 인증 흐름
+
+```mermaid
+sequenceDiagram
+    participant Client as 프론트엔드
+    participant Server as 백엔드
+    participant Auth as auth.ts
+    participant Context as context.ts
+    participant Cookie as 쿠키
+
+    Note over Client,Cookie: 회원가입/로그인 흐름
+    Client->>Server: POST /api/trpc/auth.login or auth.register
+    Server->>Auth: loginUser() / registerUser()
+    Auth-->>Server: { success, user }
+    Server->>Cookie: Set jasos_user_id cookie
+    Server-->>Client: { success, user }
+
+    Note over Client,Cookie: 인증된 요청 흐름
+    Client->>Server: Any tRPC request (with cookie)
+    Server->>Context: createContext()
+    Context->>Cookie: Parse jasos_user_id
+    Context->>Auth: getUserById()
+    Auth-->>Context: LocalUser
+    Context->>Context: Convert to User type (fixed!)
+    Context-->>Server: { req, res, user }
+```
+
+---
+
 ## 📝 라이선스
 
 MIT License
