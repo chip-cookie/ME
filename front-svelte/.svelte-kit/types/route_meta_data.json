@@ -1,0 +1,24 @@
+{
+	"/": [
+		"src/routes/+layout.server.ts",
+		"src/routes/+layout.server.ts"
+	],
+	"/api/trpc/[trpc]": [
+		"src/routes/api/trpc/[trpc]/+server.ts"
+	],
+	"/dashboard": [
+		"src/routes/+layout.server.ts"
+	],
+	"/dashboard/experience/new": [
+		"src/routes/+layout.server.ts"
+	],
+	"/login": [
+		"src/routes/+layout.server.ts"
+	],
+	"/register": [
+		"src/routes/+layout.server.ts"
+	],
+	"/writing": [
+		"src/routes/+layout.server.ts"
+	]
+}
