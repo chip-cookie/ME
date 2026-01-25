@@ -27,7 +27,7 @@ export {};
 
 declare module "$app/types" {
 	export interface AppTypes {
-		RouteId(): "/" | "/api" | "/api/trpc" | "/api/trpc/[trpc]" | "/dashboard" | "/dashboard/experience" | "/dashboard/experience/new" | "/login" | "/register" | "/writing";
+		RouteId(): "/" | "/api" | "/api/trpc" | "/api/trpc/[trpc]" | "/dashboard" | "/dashboard/experience" | "/dashboard/experience/new" | "/interview" | "/login" | "/register" | "/writing";
 		RouteParams(): {
 			"/api/trpc/[trpc]": { trpc: string }
 		};
@@ -39,11 +39,12 @@ declare module "$app/types" {
 			"/dashboard": Record<string, never>;
 			"/dashboard/experience": Record<string, never>;
 			"/dashboard/experience/new": Record<string, never>;
+			"/interview": Record<string, never>;
 			"/login": Record<string, never>;
 			"/register": Record<string, never>;
 			"/writing": Record<string, never>
 		};
-		Pathname(): "/" | "/api" | "/api/" | "/api/trpc" | "/api/trpc/" | `/api/trpc/${string}` & {} | `/api/trpc/${string}/` & {} | "/dashboard" | "/dashboard/" | "/dashboard/experience" | "/dashboard/experience/" | "/dashboard/experience/new" | "/dashboard/experience/new/" | "/login" | "/login/" | "/register" | "/register/" | "/writing" | "/writing/";
+		Pathname(): "/" | "/api" | "/api/" | "/api/trpc" | "/api/trpc/" | `/api/trpc/${string}` & {} | `/api/trpc/${string}/` & {} | "/dashboard" | "/dashboard/" | "/dashboard/experience" | "/dashboard/experience/" | "/dashboard/experience/new" | "/dashboard/experience/new/" | "/interview" | "/interview/" | "/login" | "/login/" | "/register" | "/register/" | "/writing" | "/writing/";
 		ResolvedPathname(): `${"" | `/${string}`}${ReturnType<AppTypes['Pathname']>}`;
 		Asset(): string & {};
 	}

@@ -12,6 +12,9 @@
 	"/dashboard/experience/new": [
 		"src/routes/+layout.server.ts"
 	],
+	"/interview": [
+		"src/routes/+layout.server.ts"
+	],
 	"/login": [
 		"src/routes/+layout.server.ts"
 	],
