@@ -2,58 +2,72 @@
 	import '../app.css';
 	import { page } from '$app/stores';
 	import { trpc } from '$lib/trpc';
-	import { goto } from '$app/navigation';
+	import { onMount } from 'svelte';
+    import Navbar from '$lib/components/Navbar.svelte';
 	
 	let { children, data } = $props();
 
-	async function logout() {
-		try {
-            await trpc($page).auth.logout.mutate();
-            // Force reload to clear server-side state/cookies cleanly
-            window.location.href = '/';
-        } catch (e) {
-            console.error(e);
-        }
-	}
 </script>
 
-<div class="min-h-screen flex flex-col bg-gray-50 font-sans text-gray-900">
-	<nav class="bg-white border-b border-gray-200">
-		<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-			<div class="flex justify-between h-16">
-				<div class="flex">
-					<div class="flex-shrink-0 flex items-center">
-						<a href="/" class="text-xl font-bold text-indigo-600 tracking-tight">JasoS</a>
-					</div>
-					<div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-						<a href="/" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Home</a>
-						{#if data.user}
-							<a href="/dashboard" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">Dashboard</a>
-                            <a href="/writing" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">자기소개서</a>
-                            <a href="/interview" class="border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium">면접 준비</a>
-						{/if}
-					</div>
-				</div>
-				<div class="flex items-center space-x-4">
-					{#if data.user}
-						<span class="text-sm text-gray-700 font-medium">{data.user.name || data.user.username}</span>
-						<button onclick={logout} class="text-sm font-medium text-red-600 hover:text-red-800 transition-colors">Logout</button>
-					{:else}
-						<a href="/login" class="text-sm font-medium text-gray-500 hover:text-gray-900">Login</a>
-						<a href="/register" class="text-sm font-medium text-indigo-600 hover:text-indigo-800">Register</a>
-					{/if}
-				</div>
-			</div>
-		</div>
-	</nav>
+<div class="min-h-screen flex flex-col bg-[#fcfcfd] font-sans text-gray-900 selection:bg-indigo-100 selection:text-indigo-900">
+	<Navbar user={data.user} />
 
-	<main class="flex-1 w-full mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8">
+	<main class="flex-1 w-full relative">
 		{@render children()}
 	</main>
     
-    <footer class="bg-white border-t border-gray-200 py-8 mt-auto">
-        <div class="max-w-7xl mx-auto px-4 text-center text-sm text-gray-400">
-            &copy; 2026 JasoS. Built with Svelte 5 & SvelteKit.
+    <footer class="bg-white border-t border-gray-100 py-20">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+                <div class="col-span-1 md:col-span-2">
+                    <a href="/" class="text-2xl font-black text-indigo-600 tracking-tighter flex items-center gap-2 mb-6">
+                        <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-lg">J</div>
+                        JasoS
+                    </a>
+                    <p class="text-gray-400 font-medium max-w-sm leading-relaxed">
+                        JasoS는 AI 기술을 활용하여 당신의 커리어 성공을 돕는 차세대 자기소개서&면접 준비 플랫폼입니다. 
+                        우리는 기술을 통해 취업의 장벽을 낮추고, 모든 지원자가 자신의 가치를 완벽하게 증명할 수 있도록 돕습니다.
+                    </p>
+                </div>
+                <div>
+                    <h4 class="text-xs font-black text-gray-900 uppercase tracking-widest mb-6">Product</h4>
+                    <ul class="space-y-4 text-sm font-bold text-gray-400">
+                        <li><a href="/writing" class="hover:text-indigo-600 transition-colors">자기소개서 작성</a></li>
+                        <li><a href="/interview" class="hover:text-indigo-600 transition-colors">AI 면접 준비</a></li>
+                        <li><a href="/corporate" class="hover:text-indigo-600 transition-colors">기업 정밀 분석</a></li>
+                        <li><a href="/analysis" class="hover:text-indigo-600 transition-colors">JD 매칭 분석</a></li>
+                    </ul>
+                </div>
+                <div>
+                    <h4 class="text-xs font-black text-gray-900 uppercase tracking-widest mb-6">Company</h4>
+                    <ul class="space-y-4 text-sm font-bold text-gray-400">
+                        <li><a href="/services" class="hover:text-indigo-600 transition-colors">우리 정보</a></li>
+                        <li><a href="/blog" class="hover:text-indigo-600 transition-colors">최신 소식</a></li>
+                        <li><a href="/contact" class="hover:text-indigo-600 transition-colors">지원 문의</a></li>
+                        <li><a href="/results" class="hover:text-indigo-600 transition-colors">성공 사례</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="pt-8 border-t border-gray-50 flex flex-col md:flex-row justify-between items-center gap-4">
+                <p class="text-xs font-bold text-gray-300 uppercase tracking-widest">
+                    &copy; 2026 JasoS. Built with Svelte 5 & Stratify Logic.
+                </p>
+                <div class="flex gap-6">
+                    <a href="#" class="text-xs font-bold text-gray-300 hover:text-indigo-600 transition-colors uppercase tracking-widest">Privacy Policy</a>
+                    <a href="#" class="text-xs font-bold text-gray-300 hover:text-indigo-600 transition-colors uppercase tracking-widest">Terms of Service</a>
+                </div>
+            </div>
         </div>
     </footer>
 </div>
+
+<style>
+    :global(html) {
+        scroll-behavior: smooth;
+    }
+    
+    :global(body) {
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+    }
+</style>

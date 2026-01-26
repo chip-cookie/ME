@@ -11,16 +11,54 @@
     let generatedText = $state('');
     let isGenerating = $state(false);
     let error = $state('');
+    let charCount = $derived.by(() => {
+        const text = generatedText || '';
+        const total = text.length;
+        const noSpace = text.replace(/\s/g, '').length;
+        let bytes = 0;
+        for (let i = 0; i < text.length; i++) {
+            bytes += text.charCodeAt(i) > 127 ? 2 : 1;
+        }
+        return { total, noSpace, bytes };
+    });
 
     // Pre-load data
     let styles = $state<any[]>([]);
     let experiences = $state<any[]>([]);
+    
+    let jdContext = $state<{ keywords: string[], summary: string } | null>(null);
+    let analysisIdInput = $state('');
+    let showJdModal = $state(false);
 
     $effect(() => {
         const client = trpc($page);
         client.writingLearning.listStyles.query().then(res => styles = res);
         client.experiences.list.query().then(res => experiences = res);
     });
+
+    async function fetchJdAnalysis() {
+        if (!analysisIdInput) return;
+        try {
+            const res = await fetch(`/api/analysis/${analysisIdInput}`);
+            if (res.ok) {
+                const data = await res.json();
+                if (data.analysis_result) {
+                    jdContext = {
+                        keywords: data.analysis_result.talent_keywords || [],
+                        summary: data.analysis_result.job_summary || ""
+                    };
+                    showJdModal = false;
+                    alert("JD 분석 내용을 불러왔습니다.");
+                } else {
+                    alert("아직 분석이 완료되지 않았습니다.");
+                }
+            } else {
+                alert("분석 결과를 찾을 수 없습니다.");
+            }
+        } catch (e) {
+            alert("불러오기 실패");
+        }
+    }
 
     async function handleGenerate() {
         if (!prompt) return;
@@ -140,22 +178,70 @@
                 />
             </div>
 
-            <button 
-                onclick={handleGenerate}
-                disabled={isGenerating || !prompt}
-                class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-            >
-                {#if isGenerating}
-                    생성 중...
-                {:else}
-                    자기소개서 생성
-                {/if}
-            </button>
+            <div class="flex flex-col gap-2">
+                <button 
+                    onclick={() => showJdModal = true}
+                    class="w-full py-2 px-4 border border-indigo-200 text-indigo-600 rounded-md text-sm font-bold hover:bg-indigo-50 transition-colors flex items-center justify-center gap-2"
+                >
+                    <FileText class="w-4 h-4" />
+                    {jdContext ? "JD 분석 적용됨" : "JD 분석 불러오기"}
+                </button>
+
+                <button 
+                    onclick={handleGenerate}
+                    disabled={isGenerating || !prompt}
+                    class="w-full flex justify-center py-3 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
+                >
+                    {#if isGenerating}
+                        생성 중...
+                    {:else}
+                        자기소개서 생성
+                    {/if}
+                </button>
+            </div>
             
             {#if error}
                 <p class="text-red-500 text-sm">{error}</p>
             {/if}
         </div>
+
+        <!-- JD Modal -->
+        {#if showJdModal}
+            <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" transition:fade>
+                <div class="bg-white rounded-2xl p-8 max-w-md w-full space-y-6 shadow-2xl" in:fly={{ y: 20 }}>
+                    <div class="flex justify-between items-center">
+                        <h3 class="text-xl font-bold text-gray-900">JD 분석 불러오기</h3>
+                        <button onclick={() => showJdModal = false} class="text-gray-400 hover:text-gray-600"><X class="w-6 h-6" /></button>
+                    </div>
+                    <p class="text-sm text-gray-500">
+                        'JD 분석' 페이지에서 생성된 분석 ID를 입력해 주세요. 분석 내용을 바탕으로 자소서가 작성됩니다.
+                    </p>
+                    <div class="flex gap-2">
+                        <input 
+                            type="text" 
+                            bind:value={analysisIdInput} 
+                            placeholder="분석 ID 입력 (예: 1)" 
+                            class="flex-1 rounded-xl border-gray-200 border p-3 text-sm focus:ring-2 focus:ring-indigo-500 outline-none" 
+                        />
+                        <button 
+                            onclick={fetchJdAnalysis}
+                            class="px-6 py-2 bg-indigo-600 text-white rounded-xl font-bold hover:bg-indigo-700 transition-all shadow-lg active:scale-95"
+                        >
+                            불러오기
+                        </button>
+                    </div>
+                     {#if jdContext}
+                        <div class="p-4 bg-emerald-50 rounded-xl border border-emerald-100 flex items-start gap-3">
+                            <CheckCircle2 class="w-5 h-5 text-emerald-500 shrink-0 mt-0.5" />
+                            <div>
+                                <p class="text-xs font-bold text-emerald-700 uppercase tracking-widest">분석 데이터 로드됨</p>
+                                <p class="text-[11px] text-emerald-600 line-clamp-2 mt-1">{jdContext.summary}</p>
+                            </div>
+                        </div>
+                    {/if}
+                </div>
+            </div>
+        {/if}
 
         <!-- Output Section -->
         <div class="md:col-span-2 bg-gray-50 rounded-lg p-6 border border-gray-200 min-h-[500px]">
@@ -163,9 +249,15 @@
                 <div class="prose max-w-none whitespace-pre-wrap leading-relaxed text-gray-800">
                     {generatedText}
                 </div>
-                <div class="mt-4 pt-4 border-t border-gray-200 flex justify-between text-sm text-gray-500">
-                    <span>글자수: {generatedText.length}자 (공백포함)</span>
-                    <button class="text-indigo-600 hover:text-indigo-800" onclick={() => navigator.clipboard.writeText(generatedText)}>복사하기</button>
+                <div class="mt-4 pt-4 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4 text-xs font-bold text-gray-400 uppercase tracking-widest">
+                    <div class="flex gap-6">
+                        <span class="flex items-center gap-1.5">공백포함 <strong class="text-gray-900">{charCount.total}</strong>자</span>
+                        <span class="flex items-center gap-1.5">공백제외 <strong class="text-gray-900">{charCount.noSpace}</strong>자</span>
+                        <span class="flex items-center gap-1.5"><strong class="text-gray-900">{charCount.bytes}</strong> bytes</span>
+                    </div>
+                    <button class="text-indigo-600 hover:text-indigo-800 transition-colors flex items-center gap-1" onclick={() => navigator.clipboard.writeText(generatedText)}>
+                        복사하기
+                    </button>
                 </div>
             {:else if isGenerating}
                 <div class="h-full flex items-center justify-center text-gray-400 animate-pulse">
