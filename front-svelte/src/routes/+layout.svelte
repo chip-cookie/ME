@@ -20,8 +20,12 @@
         <div class="container-px">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                 <div class="col-span-1 md:col-span-2">
-                    <a href="/" class="flex items-center mb-6 px-1">
-                        <div class="w-10 h-10 bg-gray-900 text-white rounded-[1.25rem] flex items-center justify-center text-xl font-black shadow-2xl">J</div>
+                    <a href="/" class="flex items-center mb-6">
+                        <div class="relative w-10 h-10 flex items-center justify-center">
+                             <div class="absolute inset-0 bg-gray-900 rounded-2xl"></div>
+                             <span class="relative text-white text-xl font-black tracking-tighter">J</span>
+                             <div class="absolute -top-1 -right-1 w-2 h-2 bg-indigo-500 rounded-full border-2 border-white"></div>
+                        </div>
                     </a>
                     <p class="text-gray-400 font-medium max-w-sm leading-relaxed">
                         JasoS는 AI 기술을 활용하여 당신의 커리어 성공을 돕는 차세대 자기소개서&면접 준비 플랫폼입니다. 
