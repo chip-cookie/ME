@@ -42,7 +42,7 @@
     }
 </script>
 
-<div class="max-w-4xl mx-auto py-10 px-4 space-y-8">
+<div class="container-px py-24 md:py-32 space-y-12">
     <div>
         <h1 class="text-3xl font-bold text-gray-900">새 경험 정리</h1>
         <p class="text-gray-500 mt-2">

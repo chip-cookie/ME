@@ -17,11 +17,11 @@
 	</main>
     
     <footer class="bg-white border-t border-gray-100 py-20">
-        <div class="max-w-7xl mx-auto px-4">
+        <div class="container-px">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                 <div class="col-span-1 md:col-span-2">
-                    <a href="/" class="flex items-center mb-6">
-                        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl font-black">J</div>
+                    <a href="/" class="flex items-center mb-6 px-1">
+                        <div class="w-10 h-10 bg-gradient-to-br from-indigo-500 via-indigo-600 to-purple-600 rounded-2xl flex items-center justify-center text-white text-xl font-black shadow-lg shadow-indigo-100/50">J</div>
                     </a>
                     <p class="text-gray-400 font-medium max-w-sm leading-relaxed">
                         JasoS는 AI 기술을 활용하여 당신의 커리어 성공을 돕는 차세대 자기소개서&면접 준비 플랫폼입니다. 
@@ -52,8 +52,8 @@
                     &copy; 2026 JasoS. Built with Svelte 5 & Stratify Logic.
                 </p>
                 <div class="flex gap-6">
-                    <a href="#" class="text-xs font-bold text-gray-300 hover:text-indigo-600 transition-colors uppercase tracking-widest">Privacy Policy</a>
-                    <a href="#" class="text-xs font-bold text-gray-300 hover:text-indigo-600 transition-colors uppercase tracking-widest">Terms of Service</a>
+                    <a href="/" class="text-xs font-bold text-gray-300 hover:text-indigo-600 transition-colors uppercase tracking-widest">Privacy Policy</a>
+                    <a href="/" class="text-xs font-bold text-gray-300 hover:text-indigo-600 transition-colors uppercase tracking-widest">Terms of Service</a>
                 </div>
             </div>
         </div>

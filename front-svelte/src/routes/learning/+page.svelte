@@ -30,7 +30,7 @@
     let interviewStyles = $state<any[]>([]);
     let currentStyles = $derived(activeTab === 'writing' ? writingStyles : interviewStyles);
 
-    let fileInput: HTMLInputElement;
+    let fileInput = $state<HTMLInputElement>();
 
     // Fetch Styles
     $effect(() => {
@@ -261,16 +261,18 @@
 
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
                                 <div class="space-y-2">
-                                    <label class="text-xs font-black text-gray-400 uppercase tracking-widest">스타일 이름</label>
+                                    <label for="style-name-input" class="text-xs font-black text-gray-400 uppercase tracking-widest">스타일 이름</label>
                                     <input 
+                                        id="style-name-input"
                                         type="text" 
                                         bind:value={styleName}
                                         class="w-full px-4 py-3 bg-gray-50 border-none rounded-xl focus:ring-2 focus:ring-purple-500 font-bold"
                                     />
                                 </div>
                                 <div class="space-y-2">
-                                    <label class="text-xs font-black text-gray-400 uppercase tracking-widest">간단한 설명</label>
+                                    <label for="style-desc-input" class="text-xs font-black text-gray-400 uppercase tracking-widest">간단한 설명</label>
                                     <input 
+                                        id="style-desc-input"
                                         type="text" 
                                         bind:value={description}
                                         placeholder="예: 현대자동차 지원용, 성격 강조형"
@@ -280,7 +282,7 @@
                             </div>
 
                             <div class="space-y-4">
-                                <label class="text-xs font-black text-gray-400 uppercase tracking-widest">추출된 스타일 특징</label>
+                                <span class="text-xs font-black text-gray-400 uppercase tracking-widest">추출된 스타일 특징</span>
                                 <div class="flex flex-wrap gap-2">
                                     {#if analyzedCharacteristics.tone}
                                         <span class="px-4 py-2 bg-indigo-50 text-indigo-700 rounded-xl text-xs font-bold border border-indigo-100 italic">

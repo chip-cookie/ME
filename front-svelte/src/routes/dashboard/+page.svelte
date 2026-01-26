@@ -26,7 +26,7 @@
     });
 </script>
 
-<div class="space-y-8 animate-in fade-in duration-500">
+<div class="container-px py-24 md:py-32 space-y-16 animate-in fade-in duration-500">
     <!-- Header -->
     <header class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <div>
