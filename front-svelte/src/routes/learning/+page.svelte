@@ -28,6 +28,7 @@
 
     let writingStyles = $state<any[]>([]);
     let interviewStyles = $state<any[]>([]);
+    let currentStyles = $derived(activeTab === 'writing' ? writingStyles : interviewStyles);
 
     let fileInput: HTMLInputElement;
 
@@ -331,34 +332,32 @@
                     </h2>
 
                     <div class="space-y-4 max-h-[600px] overflow-y-auto pr-2">
-                        {#let currentStyles = activeTab === 'writing' ? writingStyles : interviewStyles}
-                            {#if currentStyles.length === 0}
-                                <div class="py-20 text-center space-y-3 opacity-40">
-                                    <Sparkles class="w-12 h-12 text-gray-300 mx-auto" />
-                                    <p class="text-sm font-bold">아직 학습된 스타일이 없습니다.</p>
-                                </div>
-                            {:else}
-                                {#each currentStyles as style}
-                                    <div class="group bg-gray-50 p-5 rounded-2xl border border-transparent hover:border-purple-200 hover:bg-white transition-all">
-                                        <div class="flex justify-between items-start">
-                                            <div class="space-y-1">
-                                                <h4 class="font-bold text-gray-900">{style.name}</h4>
-                                                <p class="text-xs text-gray-500 leading-relaxed">{style.description || '설명 없음'}</p>
-                                                <p class="text-[10px] text-gray-300 font-black pt-2 uppercase tracking-tighter">
-                                                    Learned on {new Date(style.createdAt).toLocaleDateString()}
-                                                </p>
-                                            </div>
-                                            <button 
-                                                onclick={() => handleDelete(style.id)}
-                                                class="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-all"
-                                            >
-                                                <Trash2 class="w-4 h-4" />
-                                            </button>
+                        {#if currentStyles.length === 0}
+                            <div class="py-20 text-center space-y-3 opacity-40">
+                                <Sparkles class="w-12 h-12 text-gray-300 mx-auto" />
+                                <p class="text-sm font-bold">아직 학습된 스타일이 없습니다.</p>
+                            </div>
+                        {:else}
+                            {#each currentStyles as style}
+                                <div class="group bg-gray-50 p-5 rounded-2xl border border-transparent hover:border-purple-200 hover:bg-white transition-all">
+                                    <div class="flex justify-between items-start">
+                                        <div class="space-y-1">
+                                            <h4 class="font-bold text-gray-900">{style.name}</h4>
+                                            <p class="text-xs text-gray-500 leading-relaxed">{style.description || '설명 없음'}</p>
+                                            <p class="text-[10px] text-gray-300 font-black pt-2 uppercase tracking-tighter">
+                                                Learned on {new Date(style.createdAt).toLocaleDateString()}
+                                            </p>
                                         </div>
+                                        <button 
+                                            onclick={() => handleDelete(style.id)}
+                                            class="opacity-0 group-hover:opacity-100 p-2 text-gray-300 hover:text-red-500 transition-all"
+                                        >
+                                            <Trash2 class="w-4 h-4" />
+                                        </button>
                                     </div>
-                                {/each}
-                            {/if}
-                        {/let}
+                                </div>
+                            {/each}
+                        {/if}
                     </div>
 
                     <div class="p-4 bg-gray-900 rounded-2xl flex items-start gap-3">
