@@ -54,7 +54,7 @@
 
     <!-- Filter Section -->
     <section class="sticky top-16 bg-white/80 backdrop-blur-md border-y border-gray-100 z-30 py-6">
-        <div class="container mx-auto px-4">
+        <div class="container-px">
             <div class="flex flex-col md:flex-row items-center justify-between gap-6">
                 <div class="flex items-center gap-3 text-gray-400">
                     <Filter class="w-4 h-4" />
@@ -89,7 +89,7 @@
 
     <!-- Grid Section -->
     <main class="py-16 md:py-24">
-        <div class="container mx-auto px-4">
+        <div class="container-px">
             {#if isLoading && caseStudies.length === 0}
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
                     {#each Array(6) as _}

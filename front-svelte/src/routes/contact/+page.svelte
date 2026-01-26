@@ -46,7 +46,7 @@
     }
 </script>
 
-<div class="min-h-screen bg-gray-50 flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8">
+<div class="container-px py-24 md:py-32 flex flex-col justify-center">
     <div class="max-w-xl mx-auto w-full">
         <!-- Header -->
         <div class="text-center mb-12">

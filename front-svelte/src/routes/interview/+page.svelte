@@ -122,7 +122,7 @@
     }
 </script>
 
-<div class="max-w-7xl mx-auto py-12 px-4 space-y-8">
+<div class="container-px py-24 md:py-32 space-y-16">
     <!-- Header -->
     <div class="space-y-4">
         <h1 class="text-4xl font-extrabold text-gray-900 tracking-tight flex items-center gap-3">

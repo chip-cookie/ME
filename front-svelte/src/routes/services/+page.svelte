@@ -81,7 +81,7 @@
 
     <!-- Services Section -->
     <section class="py-24 md:py-32 bg-white">
-        <div class="container mx-auto px-4">
+        <div class="container-px">
             <div class="space-y-32">
                 {#each services as service, i}
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-16 items-center">
@@ -150,7 +150,7 @@
 
     <!-- Why Us Section -->
     <section class="py-24 md:py-32 bg-gray-50/50">
-        <div class="container mx-auto px-4">
+        <div class="container-px">
             <div class="text-center mb-20">
                 <h2 class="text-4xl md:text-5xl font-black text-gray-900 mb-6 tracking-tight">WHY CHOOSE JASOS?</h2>
                 <div class="w-24 h-1.5 bg-indigo-600 mx-auto rounded-full"></div>

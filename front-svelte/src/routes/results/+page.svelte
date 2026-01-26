@@ -58,7 +58,7 @@
 
     <!-- Stats Overview -->
     <section class="py-12 bg-white border-y border-gray-100">
-        <div class="container mx-auto px-4">
+        <div class="container-px">
             <div class="grid grid-cols-2 lg:grid-cols-4 gap-8 md:gap-12">
                 <div class="text-center md:text-left">
                     <div class="text-4xl md:text-5xl font-black text-gray-900 mb-2">10k+</div>
@@ -82,7 +82,7 @@
 
     <!-- Category Filter -->
     <section class="py-12">
-        <div class="container mx-auto px-4">
+        <div class="container-px">
             <div class="flex flex-wrap items-center gap-3 justify-center mb-16">
                 {#each categories as category}
                     <button 

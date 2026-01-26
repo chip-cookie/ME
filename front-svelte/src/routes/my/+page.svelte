@@ -113,7 +113,7 @@
 </script>
 
 <div class="min-h-screen bg-[#f8f9fb]">
-    <div class="max-w-7xl mx-auto px-4 py-32">
+    <div class="container-px py-24 md:py-32">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
             
             <!-- Sidebar: Experience List (lg:col-span-3) -->

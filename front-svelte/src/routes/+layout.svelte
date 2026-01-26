@@ -20,9 +20,8 @@
         <div class="max-w-7xl mx-auto px-4">
             <div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
                 <div class="col-span-1 md:col-span-2">
-                    <a href="/" class="text-2xl font-black text-indigo-600 tracking-tighter flex items-center gap-2 mb-6">
-                        <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white text-lg">J</div>
-                        JasoS
+                    <a href="/" class="flex items-center mb-6">
+                        <div class="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white text-xl font-black">J</div>
                     </a>
                     <p class="text-gray-400 font-medium max-w-sm leading-relaxed">
                         JasoS는 AI 기술을 활용하여 당신의 커리어 성공을 돕는 차세대 자기소개서&면접 준비 플랫폼입니다. 

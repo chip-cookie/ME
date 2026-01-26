@@ -56,7 +56,7 @@
 
     <!-- Content Section -->
     <main class="py-16 md:py-24">
-        <div class="container mx-auto px-4">
+        <div class="container-px">
             <!-- Search & Filters -->
             <div class="flex flex-col md:flex-row items-center justify-between gap-8 mb-16 px-4 py-8 bg-gray-50 rounded-[2.5rem] border border-gray-100">
                 <div class="flex flex-wrap items-center gap-2">

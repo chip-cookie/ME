@@ -15,7 +15,7 @@
 </script>
 
 <div class="min-h-screen bg-gray-50/50">
-    <div class="max-w-4xl mx-auto px-4 py-12 md:py-20">
+    <div class="container-px py-24 md:py-32">
         <!-- Header Section -->
         <header class="mb-12 text-center md:text-left" in:fade>
             <div class="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 text-indigo-600 text-xs font-bold uppercase tracking-wider mb-4">

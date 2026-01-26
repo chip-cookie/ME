@@ -86,7 +86,7 @@
     }
 </script>
 
-<div class="max-w-4xl mx-auto py-10 px-4 space-y-8">
+<div class="container-px py-24 md:py-32 space-y-12">
     <div class="space-y-2">
         <h1 class="text-3xl font-bold text-gray-900">자기소개서 생성</h1>
         <p class="text-gray-500">AI가 당신의 경험을 바탕으로 맞춤형 자기소개서를 작성해드립니다.</p>

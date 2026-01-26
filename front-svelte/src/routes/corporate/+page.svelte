@@ -77,7 +77,7 @@
 </script>
 
 <div class="min-h-screen bg-[#fcfcfd]">
-    <div class="max-w-7xl mx-auto px-4 py-32">
+    <div class="container-px py-24 md:py-32">
         <div class="grid grid-cols-1 lg:grid-cols-12 gap-12">
             <!-- Left Panel: Input & History (4 cols) -->
             <div class="lg:col-span-4 space-y-8">
