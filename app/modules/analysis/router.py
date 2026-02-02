@@ -60,15 +60,9 @@ def get_analysis_result(session_id: int, db: Session = Depends(get_db)):
     """
     분석 결과(기업 정보, 인재상 등)를 조회합니다.
     """
+    """
     service = AnalysisService(db)
-    session = service.db.query(service.db.query(AnalysisSession).filter(AnalysisSession.id == session_id).first.__class__).get(session_id) # Simplify query in service preferred
-    # Actually let's use service method or direct db query properly here.
-    # Re-instantiating service to use its db session is fine.
-    
-    session_obj = db.query(service.db.query(AnalysisSession).filter(AnalysisSession.id == session_id).first.__class__).filter_by(id=session_id).first()
-    # Correcting the query logic
-    from app.modules.analysis.models import AnalysisSession
-    session_obj = db.query(AnalysisSession).filter(AnalysisSession.id == session_id).first()
+    session_obj = service.get_session_by_id(session_id)
     
     if not session_obj:
         raise HTTPException(status_code=404, detail="Session not found")

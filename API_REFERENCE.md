@@ -45,12 +45,28 @@ API 문서(Swagger UI): `http://localhost:8000/docs`
 JasoS 실행을 위해 필요한 외부 서비스/설정입니다.
 
 ### 🔹 Local AI (Ollama) - 권장
+
 로컬에서 무료로 AI 모델을 실행합니다. 데이터가 외부로 유출되지 않습니다.
+
 - **설치**: [Ollama.ai](https://ollama.ai) 다운로드
 - **실행**: `ollama run llama3.2` (또는 `mistral`)
 - **설정**: `.env` 파일의 `OLLAMA_BASE_URL=http://localhost:11434`
 
 ### 🔹 Cloud AI (OpenAI) - 선택
+
 더 높은 품질의 생성을 위해 OpenAI GPT 모델을 사용할 수 있습니다.
+
 - **API Key 발급**: [OpenAI Platform](https://platform.openai.com)
 - **설정**: `.env` 파일의 `OPENAI_API_KEY=sk-...` 입력
+
+---
+
+## 5. Analysis (JD/기업 분석)
+
+채용공고(JD)를 업로드하고 분석 결과를 조회합니다.
+
+| Method | Endpoint | 설명 | Request Body | Response |
+|:---:|---|---|---|---|
+| `POST` | **/api/analysis/upload** | JD 파일(PDF/Img) 업로드 및 분석 시작 | `multipart/form-data`<br>- `file`: JD 파일 | `AnalysisSession`<br>(세션ID 포함) |
+| `GET` | **/api/analysis/{session_id}** | 분석 결과 조회 (기업정보/인재상) | - | `AnalysisSession` |
+| `POST` | **/api/analysis/chat** | JD 내용 기반 질의응답 | `ChatRequest`<br>{`session_id`: 1, `message`: "..."} | `ChatResponse` |

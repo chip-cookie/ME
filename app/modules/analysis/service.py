@@ -239,3 +239,6 @@ class AnalysisService:
         # FAISS retrieval + LLM 
         # To be implemented
         return "Chat functionality coming soon."
+
+    def get_session_by_id(self, session_id: int) -> Optional[AnalysisSession]:
+        return self.db.query(AnalysisSession).filter(AnalysisSession.id == session_id).first()
