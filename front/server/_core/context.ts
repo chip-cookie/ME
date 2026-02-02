@@ -21,7 +21,7 @@ export async function createContext(
     const localUserId = cookies["jasos_user_id"];
 
     if (localUserId) {
-      const localUser = getUserById(parseInt(localUserId, 10));
+      const localUser = await getUserById(parseInt(localUserId, 10));
       if (localUser) {
         // Convert local user to User-like object
         user = {
