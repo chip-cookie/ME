@@ -14,6 +14,11 @@ export function createApp() {
     // OAuth callback under /api/oauth/callback
     registerOAuthRoutes(app);
 
+    // Health check
+    app.get("/api/health", (req, res) => {
+        res.json({ status: "ok", time: new Date().toISOString() });
+    });
+
     // tRPC API
     app.use(
         "/api/trpc",
@@ -22,6 +27,12 @@ export function createApp() {
             createContext,
         })
     );
+
+    // Global error handler
+    app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+        console.error("[Server Error]", err);
+        res.status(500).json({ error: "Internal Server Error", message: err.message });
+    });
 
     return app;
 }
