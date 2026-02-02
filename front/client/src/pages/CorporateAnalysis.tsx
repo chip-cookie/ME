@@ -12,8 +12,6 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
-    CardHeader,
-    CardTitle,
 } from "@/components/ui/card";
 import { AnalysisUploader } from '@/components/analysis/AnalysisUploader';
 
