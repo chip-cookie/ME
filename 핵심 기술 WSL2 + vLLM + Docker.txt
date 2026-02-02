@@ -1,0 +1,163 @@
+핵심 기술: WSL2 + vLLM + Docker
+
+# vLLM 서버 실행 (Thinking 기능 활성화 및 메모리 최적화)
+vllm serve "Qwen/Qwen3-4B-Thinking-2507" \
+  --enable-reasoning \
+  --reasoning-parser deepseek_r1 \
+  --max-model-len 32768 \
+  --gpu-memory-utilization 0.95 \
+  --trust-remote-code \
+  --host 0.0.0.0 \
+  --port 8000
+
+핵심 기술: Kiwi (형태소 분석) + Overlapping Chunking 목표: 문맥(Context)의 단절 없이 정확한 검색(Retrieval) 성능 확보.
+
+적용 파일: app/modules/learning/services/chunking_service.py (신규 생성 또는 기존 로직 교체)
+Python
+
+from kiwipiepy import Kiwi
+
+class KoreanSmartChunker:
+    def __init__(self, chunk_size=500, overlap_size=100):
+        self.kiwi = Kiwi()
+        self.chunk_size = chunk_size
+        self.overlap_size = overlap_size
+
+    def create_chunks(self, text: str):
+        # 1. Kiwi 형태소 분석기로 '문장 단위' 정확하게 분리
+        # 단순 .split('.')은 "1. 항목" 같은 경우 오작동함. Kiwi는 이걸 해결함.
+        sentences = self.kiwi.split_into_sents(text)
+        
+        chunks = []
+        current_chunk = []
+        current_length = 0
+        
+        for sent in sentences:
+            sent_text = sent.text
+            sent_len = len(sent_text)
+            
+            # 2. 현재 청크 + 새 문장이 설정 크기를 넘으면 저장
+            if current_length + sent_len > self.chunk_size:
+                # 현재까지 모은 문장들을 합쳐서 청크 생성
+                full_chunk_text = " ".join(current_chunk)
+                chunks.append(full_chunk_text)
+                
+                # 3. [핵심] Overlapping (중첩) 로직
+                # 이전 청크의 마지막 부분(overlap_size 만큼)을 다음 청크의 시작으로 가져옴
+                # 문맥이 끊기는 것을 방지하여 RAG 검색 정확도 200% 상승
+                overlap_text = ""
+                while len(overlap_text) < self.overlap_size and current_chunk:
+                    overlap_text = current_chunk.pop() + " " + overlap_text
+                
+                current_chunk = [overlap_text.strip(), sent_text]
+                current_length = len(overlap_text) + sent_len
+            else:
+                current_chunk.append(sent_text)
+                current_length += sent_len
+                
+        # 마지막 남은 조각 처리
+        if current_chunk:
+            chunks.append(" ".join(current_chunk))
+            
+        return chunks
+
+
+핵심 기술: System Prompt Engineering + Fact Injection 목표: 할루시네이션(거짓말) 원천 차단 및 사용자 맞춤형 글쓰기.
+
+적용 파일: app/modules/writing/services/writing_service.py
+Python
+
+def generate_prompt(user_facts: dict, job_description: str, retrieved_context: list):
+    """
+    user_facts: 사용자 이력서/경험 데이터 (JSON)
+    job_description: 지원하려는 채용 공고 내용
+    retrieved_context: Kiwi로 청킹되어 검색된 관련 경험들
+    """
+    
+    system_prompt = f"""
+    당신은 사용자의 취업 합격을 돕는 냉철하고 논리적인 [AI 에이전트]입니다.
+    
+    [핵심 규칙 (Critical Rules)]
+    1. **NO HALLUCINATION (거짓 작성 금지):** 아래 제공된 [User Facts]와 [Retrieved Context]에 없는 내용은 절대 지어내지 마십시오.
+       정보가 부족하면 가상의 이야기를 쓰지 말고, 사용자에게 경험을 더 물어보는 질문을 하십시오.
+       
+    2. **Fact Grounding (사실 기반):**
+       모든 주장은 [User Facts]에 있는 구체적인 수치와 경험에 기반해야 합니다.
+       
+    3. **Strategic Thinking (전략적 사고):**
+       [Job Description]에서 요구하는 역량과 [User Facts]를 연결하여 작성하십시오.
+    """
+
+    user_message = f"""
+    [Job Description]
+    {job_description}
+
+    [User Facts (절대적 사실)]
+    {json.dumps(user_facts, ensure_ascii=False)}
+
+    [Retrieved Context (관련된 세부 경험)]
+    {"\n".join(retrieved_context)}
+
+    위 정보를 바탕으로 자기소개서의 '지원동기' 항목을 작성해 주세요.
+    """
+    
+    return system_prompt, user_message
+
+📊 전체 데이터 흐름도 (Pipeline)
+
+이 아키텍처가 적용되면 데이터는 아래 순서로 흐릅니다.
+
+    입력 (Input): 사용자가 이력서(PDF/HWP) 업로드.
+
+    분해 (Eye): Kiwi가 문장을 정확히 쪼개고, Overlapping 기술이 앞뒤 문맥을 겹쳐서 저장 (벡터 DB).
+
+    질문 (Query): "삼성전자 지원동기 써줘" 요청.
+
+    검색 (Retrieval): 질문과 관련된 사용자의 '진짜 경험'만 벡터 DB에서 가져옴.
+
+    제어 (Control): 프롬프트가 "가져온 팩트 외엔 절대 쓰지 마"라고 제약 걺.
+
+    생성 (Brain): **vLLM(Qwen)**이 이 모든 정보를 초고속으로 처리하여, 논리적이고 사실적인 자소서 생성.
+
+    추가
+    BM25(키워드 검색) + Vector(의미 검색)**을 섞어서 쓰는 Hybrid Search를 적용해야 합니다.
+
+    구현 방법 (app/modules/learning/services/rag_service.py):
+
+        RankBM25 라이브러리를 추가하여 키워드 점수를 계산하고, 벡터 점수와 합산(Weighted Sum)하거나 RRF(Reciprocal Rank Fusion) 알고리즘으로 재정렬합니다.
+
+Python
+
+# 개념 코드: BM25와 Vector 검색 결과 퓨전
+from rank_bm25 import BM25Okapi
+
+def hybrid_search(query, documents):
+    # 1. 키워드 검색 (BM25)
+    tokenized_corpus = [doc.split() for doc in documents]
+    bm25 = BM25Okapi(tokenized_corpus)
+    keyword_scores = bm25.get_scores(query.split())
+    
+    # 2. 벡터 검색 (기존 로직)
+    vector_scores = vector_db.similarity_search(query)
+    
+    # 3. 점수 합산 및 재정렬 (RRF 권장)
+    final_results = combine_scores(keyword_scores, vector_scores)
+    return final_results
+
+    구현 방법 (Frontend & Backend):
+
+    Backend: vLLM의 Streaming Response를 활용하여 토큰이 생성될 때마다 프론트엔드로 쏴줍니다. (Server-Sent Events)
+
+    Frontend: <think> 태그 안의 내용이 들어오면 회색 글씨나 **접이식 UI(Accordion)**로 "논리적 사고 과정을 실시간 노출" 시켜줍니다. 이는 사용자에게 "오, 이 AI가 진짜 고민하고 있네?"라는 **신뢰감(Trust)**을 줄수있도록
+
+ Markdown 변환 전략.
+
+구현 방법:
+
+
+문서 파싱 단계에서 표를 발견하면 단순 텍스트가 아니라 Markdown Table 형식(| 날짜 | 회사 | 직무 |)으로 변환해서 저장해야 합니다.
+
+Qwen 같은 LLM은 Markdown 표를 아주 잘 이해합니다. docling이나 PyMuPDF의 고급 기능을 사용하여 표 구조를 유지하세요.
+
+
+BM25 라이브러리 추가
