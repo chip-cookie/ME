@@ -161,3 +161,202 @@ Qwen 같은 LLM은 Markdown 표를 아주 잘 이해합니다. docling이나 PyM
 
 
 BM25 라이브러리 추가
+
+
+키텍처 설계 (Architecture Design)
+
+    프론트엔드: 드래그 앤 드롭(Drag & Drop) 및 파일 선택 버튼이 있는 AnalysisUploader 컴포넌트 추가.
+
+    백엔드 (Router): POST /analysis/upload 엔드포인트 생성.
+
+    백엔드 (Service): Strategy Pattern을 사용하여 파일 타입별 전용 파서 구현.
+
+        PDF/DOCX: Docling (기존 로직 활용)
+
+        HWP: pyhwpx 또는 텍스트 추출기
+
+        Excel/CSV: Pandas (표 데이터 구조화에 최적)
+
+        TXT/MD: Native IO (그대로 읽기)
+
+1. 백엔드 구현 (app/modules/analysis/services/file_parser_service.py)
+
+모든 파일 형식을 처리하는 전용 서비스 클래스를 만듭니다.
+Python
+
+import pandas as pd
+from fastapi import UploadFile
+import io
+import os
+# 기존에 구축된 docling이나 text extraction 로직 import
+from app.modules.common.utils.text_cleaner import clean_text
+
+class UniversalFileParser:
+    """
+    모든 종류의 기업 분석 파일(PDF, HWP, Excel, TXT 등)을 
+    텍스트나 구조화된 데이터로 변환하는 파서 팩토리
+    """
+
+    async def parse_file(self, file: UploadFile) -> str:
+        filename = file.filename
+        ext = os.path.splitext(filename)[1].lower()
+        content = await file.read()
+        
+        # 파일 타입별 전략 실행 (Strategy Pattern)
+        if ext == '.pdf':
+            return self._parse_pdf(content)
+        elif ext in ['.docx', '.doc']:
+            return self._parse_docx(content)
+        elif ext == '.hwp':
+            return self._parse_hwp(content)
+        elif ext in ['.xlsx', '.xls']:
+            return self._parse_excel(content)
+        elif ext == '.csv':
+            return self._parse_csv(content)
+        elif ext in ['.txt', '.md', '.markdown']:
+            return self._parse_text(content)
+        else:
+            raise ValueError(f"지원하지 않는 파일 형식입니다: {ext}")
+
+    def _parse_excel(self, content: bytes) -> str:
+        """Excel: Pandas로 읽어서 Markdown 표나 텍스트로 변환"""
+        df = pd.read_excel(io.BytesIO(content))
+        # DataFrame을 LLM이 이해하기 쉬운 Markdown Table로 변환
+        return df.to_markdown(index=False)
+
+    def _parse_csv(self, content: bytes) -> str:
+        """CSV: Pandas로 읽기"""
+        df = pd.read_csv(io.BytesIO(content))
+        return df.to_markdown(index=False)
+
+    def _parse_text(self, content: bytes) -> str:
+        """TXT/Markdown: 단순 디코딩"""
+        return content.decode('utf-8')
+
+    def _parse_hwp(self, content: bytes) -> str:
+        """HWP: 별도의 HWP 라이브러리 사용 (기존 extraction_service 활용)"""
+        # 임시 파일로 저장 후 처리해야 하는 경우가 많음
+        # 여기서는 로직 예시만 작성
+        temp_path = f"/tmp/temp.hwp"
+        with open(temp_path, "wb") as f:
+            f.write(content)
+        
+        # 기 구현된 HWP 파서 호출
+        # text = hwp_parser.extract(temp_path)
+        text = "[HWP 파일 내용 추출됨]" 
+        return text
+
+    def _parse_pdf(self, content: bytes) -> str:
+        # Docling이나 PyPDF 호출
+        return "[PDF 파일 내용 추출됨]"
+
+    def _parse_docx(self, content: bytes) -> str:
+        # python-docx 호출
+        return "[DOCX 파일 내용 추출됨]"
+
+2. 백엔드 라우터 (app/modules/analysis/routers/analysis_router.py)
+
+파일을 받아서 파싱하고, **Qwen(Thinking 모델)**에게 요약을 요청하는 엔드포인트를 추가합니다.
+Python
+
+from fastapi import APIRouter, UploadFile, File, Depends, Form
+from app.modules.analysis.services.file_parser_service import UniversalFileParser
+from app.modules.analysis.services.analysis_service import AnalysisService
+
+router = APIRouter()
+
+@router.post("/upload-insight")
+async def upload_company_analysis(
+    file: UploadFile = File(...),
+    company_name: str = Form(...), # 어느 기업에 대한 분석인지
+    parser: UniversalFileParser = Depends(),
+    analyzer: AnalysisService = Depends()
+):
+    # 1. 파일 내용 추출 (Raw Text / Table)
+    extracted_text = await parser.parse_file(file)
+    
+    # 2. Qwen 모델에게 "기업 분석 정리" 요청
+    # (Thinking 모델이 엑셀 표 등을 보고 중요 데이터를 추론함)
+    analysis_result = await analyzer.summarize_uploaded_data(
+        company_name=company_name,
+        raw_data=extracted_text
+    )
+    
+    return {
+        "status": "success",
+        "filename": file.filename,
+        "summary": analysis_result
+    }
+
+3. 프론트엔드 구현 (front/src/components/analysis/AnalysisUploader.tsx)
+
+직관적인 파일 업로드 버튼 UI입니다.
+TypeScript
+
+import React, { useState } from 'react';
+import { Upload, FileText, FileSpreadsheet, FileType } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+
+export const AnalysisUploader = ({ onUploadComplete }) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (!e.target.files?.[0]) return;
+    
+    const file = e.target.files[0];
+    const formData = new FormData();
+    formData.append('file', file);
+    formData.append('company_name', '삼성전자'); // 예시: 현재 선택된 기업명
+
+    setIsLoading(true);
+    try {
+      // API 호출
+      const response = await fetch('http://localhost:8000/api/v1/analysis/upload-insight', {
+        method: 'POST',
+        body: formData,
+      });
+      const data = await response.json();
+      onUploadComplete(data.summary); // 분석 결과를 상위 컴포넌트로 전달
+    } catch (error) {
+      console.error("Upload failed", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  return (
+    <div className="p-4 border-2 border-dashed border-gray-300 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+      <div className="flex flex-col items-center gap-2">
+        <Upload className="w-8 h-8 text-gray-500" />
+        <h3 className="font-semibold text-gray-700">기업 분석 자료 업로드</h3>
+        <p className="text-sm text-gray-500 text-center">
+          PDF, HWP, Excel, Word, MD 파일을 지원합니다.<br/>
+          AI가 자동으로 내용을 분석하여 인사이트를 도출합니다.
+        </p>
+        
+        <input 
+          type="file" 
+          id="analysis-file" 
+          className="hidden" 
+          accept=".pdf,.docx,.doc,.hwp,.xlsx,.xls,.csv,.txt,.md"
+          onChange={handleFileChange}
+        />
+        
+        <label htmlFor="analysis-file">
+          <Button variant="outline" className="mt-2 cursor-pointer" asChild>
+            <span>
+              {isLoading ? "분석 중..." : "파일 선택하기"}
+            </span>
+          </Button>
+        </label>
+      </div>
+    </div>
+  );
+};
+
+
+엑셀/CSV 처리의 핵심:
+
+위 코드(_parse_excel)처럼 Pandas를 이용해 Markdown Table 문자열로 바꿔서 프롬프트에 넣어주면, AI가 "매출액 추이"나 "영업이익률" 같은 숫자를 기가 막히게 분석합니다.
+
+대용량 파일 처리:  Kiwi + Overlapping Chunking 기술을 여기에도 적용+파일 전체를 한 번에 LLM에 넣지 말고, RAG DB에 저장한 뒤 "요약해줘"라고 명령을 내리는 구조

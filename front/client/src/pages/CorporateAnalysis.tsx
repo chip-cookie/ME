@@ -12,7 +12,10 @@ import {
     CardDescription,
     CardHeader,
     CardTitle,
+    CardHeader,
+    CardTitle,
 } from "@/components/ui/card";
+import { AnalysisUploader } from '@/components/analysis/AnalysisUploader';
 
 export default function CorporateAnalysis() {
     const [companyName, setCompanyName] = useState('');
@@ -93,52 +96,76 @@ export default function CorporateAnalysis() {
                         <div className="flex flex-col gap-4">
                             <h1 className="text-2xl font-bold flex items-center gap-2">
                                 <Building2 className="w-6 h-6 text-primary" />
-                                기업 분석 (Corporate Analysis)
+                                企业 분석
                             </h1>
                             <p className="text-muted-foreground mb-2">
                                 지원하려는 기업의 홈페이지를 분석하여 인재상, 최신 이슈, SWOT 분석 등을 제공합니다.
                             </p>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">기업명 *</label>
-                                <Input
-                                    placeholder="예: 삼성전자, 네이버"
-                                    value={companyName}
-                                    onChange={(e) => setCompanyName(e.target.value)}
-                                />
-                            </div>
 
-                            <div className="space-y-2">
-                                <label className="text-sm font-medium">홈페이지 URL (선택)</label>
-                                <div className="flex gap-2">
-                                    <Input
-                                        placeholder="예: https://www.samsung.com"
-                                        value={websiteUrl}
-                                        onChange={(e) => setWebsiteUrl(e.target.value)}
+                            {/* Input Area with Uploader */}
+                            <div className="flex flex-col gap-4 relative">
+                                <div className="absolute top-0 right-0 z-10 w-[280px]">
+                                    <AnalysisUploader
+                                        companyName={companyName}
+                                        onUploadComplete={(summary) => {
+                                            setResult({
+                                                // 임시 결과 구조 (실제로는 백엔드 응답에 맞춰야 함)
+                                                mission: "업로드된 파일 기반 분석",
+                                                ideal_candidate: ["분석됨"],
+                                                business: ["분석된 내용 참조"],
+                                                swot: { strength: summary, weakness: "", opportunity: "", threat: "" },
+                                                recent_issues: ["파일 분석 완료"],
+                                                financials: "세부 내용은 요약 참조"
+                                            });
+                                            toast.success("파일 분석이 완료되었습니다.");
+                                        }}
                                     />
                                 </div>
-                                <p className="text-xs text-muted-foreground">
-                                    URL을 입력하면 해당 사이트의 정보를 크롤링하여 더 정확하게 분석합니다. 미입력 시 AI의 지식에 의존합니다.
-                                </p>
-                            </div>
 
-                            <Button
-                                onClick={handleAnalyze}
-                                disabled={analyzing}
-                                className="w-full h-12 text-lg bg-primary hover:bg-primary/90"
-                            >
-                                {analyzing ? (
-                                    <>
-                                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                                        기업 분석 중... (시간이 소요될 수 있습니다)
-                                    </>
-                                ) : (
-                                    <>
-                                        <TrendingUp className="mr-2 h-5 w-5" />
-                                        분석하기
-                                    </>
-                                )}
-                            </Button>
+                                <div className="space-y-2 mt-2">
+                                    <label className="text-sm font-medium">기업명</label>
+                                    <Input
+                                        placeholder="예: 삼성전자, 네이버"
+                                        value={companyName}
+                                        onChange={(e) => setCompanyName(e.target.value)}
+                                        className="max-w-[calc(100%-300px)]"
+                                    />
+                                </div>
+
+                                <div className="space-y-2">
+                                    <label className="text-sm font-medium">홈페이지 URL (선택)</label>
+                                    <div className="flex gap-2">
+                                        <Input
+                                            placeholder="예: https://www.samsung.com"
+                                            value={websiteUrl}
+                                            onChange={(e) => setWebsiteUrl(e.target.value)}
+                                            className="max-w-[calc(100%-300px)]"
+                                        />
+                                    </div>
+                                    <p className="text-xs text-muted-foreground w-[calc(100%-300px)]">
+                                        URL을 입력하면 해당 사이트의 정보를 크롤링하여 더 정확하게 분석합니다. 미입력 시 AI의 지식에 의존합니다.
+                                    </p>
+                                </div>
+
+                                <Button
+                                    onClick={handleAnalyze}
+                                    disabled={analyzing}
+                                    className="w-[calc(100%-300px)] h-12 text-lg bg-primary hover:bg-primary/90"
+                                >
+                                    {analyzing ? (
+                                        <>
+                                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                            기업 분석 중... (시간이 소요될 수 있습니다)
+                                        </>
+                                    ) : (
+                                        <>
+                                            <TrendingUp className="mr-2 h-5 w-5" />
+                                            분석하기
+                                        </>
+                                    )}
+                                </Button>
+                            </div>
                         </div>
 
                         {/* History List */}
