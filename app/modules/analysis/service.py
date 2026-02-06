@@ -240,5 +240,35 @@ class AnalysisService:
         # To be implemented
         return "Chat functionality coming soon."
 
+    async def summarize_uploaded_data(self, company_name: str, raw_data: str) -> str:
+        """
+        Qwen 모델에게 기업 분석 자료 요약을 요청합니다.
+        표 데이터(Markdown)와 텍스트를 종합하여 인사이트를 도출합니다.
+        """
+        prompt = f"""
+        당신은 전문 기업 분석가입니다. 제공된 자료를 분석하여 '{company_name}'에 대한 핵심 정보를 요약하세요.
+        자료에는 표 데이터(Markdown 형식)나 텍스트가 포함되어 있을 수 있습니다.
+        
+        [분석 자료]
+        {raw_data[:8000]} # 컨텍스트 제한 고려
+        
+        [요청 사항]
+        1. 기업의 최근 실적 (매출액, 영업이익 등 숫자가 있다면 포함)
+        2. 주요 사업 영역 및 시장 지위
+        3. 핵심 경쟁력 및 위기 요인 (SWOT 분석 느낌)
+        4. 현재 채용 중인 직무와 관련된 인사이트 (지원자가 자소서에 활용할만한 포인트)
+        
+        한국어로 논리적이고 친절하게 작성해 주세요.
+        """
+        
+        try:
+            # vLLM/Ollama를 통해 요약 생성
+            # Using Thinking model if possible
+            response = self.llm.invoke(prompt)
+            return response
+        except Exception as e:
+            logger.error(f"Summarization failed: {e}")
+            return f"요약 생성 중 오류가 발생했습니다: {str(e)}"
+
     def get_session_by_id(self, session_id: int) -> Optional[AnalysisSession]:
         return self.db.query(AnalysisSession).filter(AnalysisSession.id == session_id).first()

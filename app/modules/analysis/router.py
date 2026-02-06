@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException, BackgroundTasks, Form
 from sqlalchemy.orm import Session
 from app.core.database import get_db
 from app.modules.analysis.service import AnalysisService
+from app.modules.analysis.file_parser_service import UniversalFileParser
 from app.modules.analysis.schemas import AnalysisResponse, ChatRequest, ChatResponse
+
 
 router = APIRouter(prefix="/api/analysis", tags=["Analysis"])
 
@@ -76,3 +78,28 @@ def chat_with_jd(request: ChatRequest, db: Session = Depends(get_db)):
     service = AnalysisService(db)
     answer = service.chat_with_jd(request.session_id, request.message)
     return ChatResponse(response=answer)
+
+@router.post("/upload-insight")
+async def upload_company_analysis(
+    file: UploadFile = File(...),
+    company_name: str = Form(...),
+    db: Session = Depends(get_db)
+):
+    """
+    기업 분석 자료를 업로드하고 요약을 생성합니다.
+    (PDF, Excel, HWP 등 지원)
+    """
+    parser = UniversalFileParser()
+    service = AnalysisService(db)
+    
+    # 1. 파일 파싱
+    raw_data = await parser.parse_file(file)
+    
+    # 2. 요약 생성
+    summary = await service.summarize_uploaded_data(company_name, raw_data)
+    
+    return {
+        "status": "success",
+        "filename": file.filename,
+        "summary": summary
+    }

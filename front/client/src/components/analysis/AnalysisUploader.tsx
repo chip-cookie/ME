@@ -24,7 +24,7 @@ export const AnalysisUploader: React.FC<AnalysisUploaderProps> = ({
         setIsLoading(true);
         try {
             // API 호출 (Proxy를 통해 백엔드로 전달)
-            const response = await fetch('/api/v1/analysis/upload-insight', {
+            const response = await fetch('/api/analysis/upload-insight', {
                 method: 'POST',
                 body: formData,
             });
