@@ -15,8 +15,11 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
+    # MODEL_PATH는 .env 파일에서 주입됩니다.
+    # 초기값: HuggingFace 공식 모델 (Fine-tuning 전)
+    # 배포 후:  /models/qwen35-4b-docmaster-awq-<version>  (watch_and_deploy.py 자동 패치)
     command: >
-      --model cyankiwi/Qwen3.5-4B-Instruct-AWQ-4bit
+      --model ${MODEL_PATH:-cyankiwi/Qwen3.5-4B-Instruct-AWQ-4bit}
       --quantization awq
       --max-model-len 4096
       --gpu-memory-utilization 0.85
@@ -24,6 +27,7 @@ services:
       --port 8000
     environment:
       - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+      - MODEL_PATH=${MODEL_PATH:-cyankiwi/Qwen3.5-4B-Instruct-AWQ-4bit}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/v1/models"]

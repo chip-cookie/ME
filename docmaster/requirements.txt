@@ -35,3 +35,8 @@ aiofiles==24.1.0
 
 # Training utilities (local export scripts only; actual training runs on Colab)
 datasets==3.0.0
+
+# Google Drive API (watch_and_deploy.py 자동 배포 데몬)
+google-api-python-client==2.154.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1
