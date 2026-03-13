@@ -12,10 +12,12 @@ openai==1.50.0
 httpx==0.27.0
 
 # Document Parsing
-pyhwp==0.1b12
-docling==2.15.0
-python-docx==1.1.0
-PyPDF2==3.0.1
+pyhwp==0.1b12           # HWP (.hwp) — CLI(hwp5txt) + Python API
+docling==2.15.0         # PDF/DOCX/DOC/ODT/RTF 범용 파서 (1순위)
+python-docx==1.1.0      # DOCX 폴백 파서 (표·스타일 보존)
+pypdf==3.17.0           # PDF 폴백 파서 (최후 수단)
+pdfplumber==0.11.4      # PDF 폴백 파서 (표·컬럼 레이아웃 특화)
+chardet==5.2.0          # 한국어 파일 인코딩 자동 감지 (EUC-KR/CP949/UTF-8)
 
 # RAG & Matching
 chromadb==0.5.0

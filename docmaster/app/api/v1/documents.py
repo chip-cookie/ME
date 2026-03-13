@@ -10,7 +10,7 @@ from app.database import get_db
 from app.config import get_settings
 from app.models.schema import Document
 from app.models.enums import DocType, OrgType, ResultLabel
-from app.services.parser_service import ParserService
+from app.services.parser_service import ParserService, SUPPORTED_EXTENSIONS
 from app.services.matcher_service import MatcherService
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -38,6 +38,17 @@ async def upload_document(
     result_label: ResultLabel = Form(default=None),
     db: Session = Depends(get_db),
 ):
+    # 확장자 검증
+    ext = Path(file.filename).suffix.lower()
+    if ext not in SUPPORTED_EXTENSIONS:
+        raise HTTPException(
+            status_code=415,
+            detail=(
+                f"지원하지 않는 파일 형식: '{ext}'. "
+                f"지원 형식: {', '.join(sorted(SUPPORTED_EXTENSIONS))}"
+            ),
+        )
+
     # Save file
     upload_dir = settings.uploads_dir
     upload_dir.mkdir(parents=True, exist_ok=True)
@@ -84,8 +95,9 @@ async def upload_document(
         "doc_type": doc.doc_type.value,
         "org_type": doc.org_type.value,
         "company_name": doc.company_name,
+        "file_ext": parsed["ext"],
         "sections_count": len(parsed["sections"]),
-        "char_count": len(parsed["raw_markdown"]),
+        "char_count": parsed["char_count"],
     }
 
 
