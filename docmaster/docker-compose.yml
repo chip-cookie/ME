@@ -1,0 +1,33 @@
+version: "3.8"
+
+services:
+  vllm:
+    image: vllm/vllm-openai:latest
+    container_name: docmaster-vllm
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data/models:/models
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      --model cyankiwi/Qwen3.5-4B-Instruct-AWQ-4bit
+      --quantization awq
+      --max-model-len 4096
+      --gpu-memory-utilization 0.85
+      --dtype half
+      --port 8000
+    environment:
+      - HUGGING_FACE_HUB_TOKEN=${HF_TOKEN}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/v1/models"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
