@@ -12,6 +12,7 @@ const __dirname = path.dirname(__filename);
 const plugins = [react(), tailwindcss(), vitePluginManusRuntime()];
 
 export default defineConfig({
+  base: process.env.VITE_BASE_URL ?? '/',
   plugins,
   resolve: {
     alias: {

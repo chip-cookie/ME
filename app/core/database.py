@@ -42,9 +42,9 @@ def get_db() -> Generator:
 
 def init_db():
     # 모델 임포트 (테이블 생성을 위해 필요)
-    # 리팩토링된 모듈 경로로 수정
-    from app.modules.style.models import StyleProfile, ExplicitRule
-    from app.modules.writing.models import WritingSession, VersionHistory, ChangeLog
-    from app.modules.learning.models import LearningLog, StyleUpdate
-    
+    from app.modules.style.models import StyleProfile, ExplicitRule  # noqa: F401
+    from app.modules.writing.models import WritingSession, VersionHistory, ChangeLog  # noqa: F401
+    from app.modules.learning.models import LearningLog, StyleUpdate, SuccessfulExample  # noqa: F401
+    from app.modules.analysis.models import AnalysisSession  # noqa: F401
+
     Base.metadata.create_all(bind=engine)

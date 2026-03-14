@@ -42,8 +42,8 @@ class AnalysisService:
         
         # LLM Setup (Ollama)
         self.llm = Ollama(
-            base_url=settings.OLLAMA_BASE_URL, 
-            model=settings.OLLAMA_MODEL, 
+            base_url=settings.ollama_base_url,
+            model=settings.ollama_model,
             temperature=0.1
         )
         

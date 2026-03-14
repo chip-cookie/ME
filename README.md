@@ -1,415 +1,504 @@
-# JasoS - AI 기반 취업 준비 통합 플랫폼
+# ME — AI 취업 준비 모노레포
 
-<div align="center">
+> **두 개의 독립 시스템으로 구성된 로컬 LLM 기반 취업 준비 통합 플랫폼**
 
-![JasoS Hero Banner](docs/images/hero_banner.png)
-
-**AI를 활용하여 기업 분석, 자기소개서 작성, 면접 준비를 통합 지원하는 지능형 취업 준비 플랫폼**
-
-[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue?logo=typescript)](https://www.typescriptlang.org/)
-[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react)](https://react.dev/)
-[![tRPC](https://img.shields.io/badge/tRPC-11-2596BE)](https://trpc.io/)
-
-</div>
+[![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
+[![React](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=white)](https://react.dev)
+[![Docker](https://img.shields.io/badge/Docker-vLLM-2496ED?logo=docker&logoColor=white)](https://docker.com)
 
 ---
 
-## 🌟 주요 기능
+## 프로젝트 구성
 
-### 1. 🏢 기업 분석 (Corporate Analysis)
-- **DART API 연동**: 법인명, 대표자, 설립일, 업종코드 등 공시 정보 자동 조회
-- **NPS(국민연금) API 연동**: 직원 수, 월평균 급여, 신규 입사/퇴사자, 이직률 추정
-- **웹사이트 크롤링**: 기업 홈페이지에서 인재상, 핵심 가치, 최신 이슈 추출
-- **SWOT 분석**: AI가 수집된 데이터를 바탕으로 기업의 SWOT 분석 제공
+| 서브 프로젝트 | 위치 | 설명 |
+|---|---|---|
+| **JasoS** | `app/` `front/` | AI 취업 준비 통합 플랫폼 (기업 분석 → 자소서 생성 → 면접 준비) |
+| **DocMaster AI** | `docmaster/` | 로컬 LLM 기반 취업 문서 자동 평가·개선 시스템 (GTX 1660S + vLLM) |
+
+---
+
+## JasoS
+
+취업 준비의 전 과정을 AI로 통합 지원합니다. 기업 공시 데이터 수집부터 맞춤형 자기소개서 생성, 면접 질문 생성까지 하나의 흐름으로 연결됩니다.
+
+### 주요 기능
+
+#### 1. 기업 분석
+- **DART API**: 공시 정보 자동 조회 (법인명·대표자·설립일·업종)
+- **NPS(국민연금) API**: 직원 수·월평균 급여·신규입사/퇴사 통계
+- **AI SWOT 분석**: 수집된 데이터 기반 LLM 종합 분석
 
 ```mermaid
 flowchart LR
-    subgraph Input["입력"]
-        A[기업명]
-        B[홈페이지 URL]
-    end
-    
-    subgraph APIs["외부 API"]
-        C[DART API]
-        D[NPS API]
-        E[웹 크롤러]
-    end
-    
-    subgraph Processing["처리"]
-        F[LLM 분석]
-        G[(DB 저장)]
-    end
-    
-    A --> C --> F
-    A --> D --> F
-    B --> E --> F
-    F --> G
-    
-    style C fill:#4ECDC4
-    style D fill:#45B7D1
-    style F fill:#96CEB4
+    A[기업명] --> C[DART API]
+    A --> D[NPS API]
+    B[홈페이지 URL] --> E[웹 크롤러]
+    C --> F[LLM 분석]
+    D --> F
+    E --> F
+    F --> G[(DB 저장)]
 ```
 
----
-
-### 2. ✍️ 자기소개서 작성 (Writing)
-- **스타일 학습**: 사용자의 기존 합격 자소서를 학습하여 문체 모방
-- **경험 소재 분석**: STAR 기법으로 경험 구조화 및 성향 분석
-- **기업 맞춤형 생성**: 저장된 기업 분석 데이터를 활용하여 인재상에 맞는 자소서 생성
-- **글자수 자동 조절**: 목표 글자수에 맞춰 자동 조정
+#### 2. 자기소개서 작성
+- **스타일 학습**: 기존 합격 자소서를 학습하여 문체 프로파일 생성
+- **경험 소재 구조화**: STAR 기법으로 경험 자동 분류 및 DB 저장
+- **기업 맞춤형 생성**: 기업 분석 데이터 + 스타일 프로파일 + 경험 소재 → RAG 기반 자소서 생성
+- **글자수 자동 조절**: 항목별 목표 글자수에 맞춰 자동 조정
 
 ```mermaid
-flowchart TB
-    subgraph Inputs["입력 소스"]
-        A[스타일 프로필]
-        B[경험 소재]
-        C[기업 분석 데이터]
-        D[작성 프롬프트]
-    end
-    
-    subgraph RAG["RAG 처리"]
-        E[관련 예시 추출]
-        F[컨텍스트 구성]
-    end
-    
-    subgraph Generation["생성"]
-        G[LLM 생성]
-        H[글자수 조정]
-    end
-    
-    A --> E
-    B --> F
-    C --> F
-    D --> F
-    E --> G
+flowchart LR
+    A[스타일 프로필] --> E[관련 예시 추출]
+    B[경험 소재] --> F[컨텍스트 구성]
+    C[기업 분석] --> F
+    D[작성 프롬프트] --> F
+    E --> G[LLM 생성]
     F --> G
-    G --> H
+    G --> H[글자수 조정]
     H --> I[자기소개서]
-    
-    style G fill:#FF6B6B
-    style I fill:#4ECDC4
 ```
 
----
+#### 3. 면접 준비
+- **예상 질문 생성**: 자소서 + 기업 분석 기반 맞춤 질문
+- **모범 답변 전략**: 질문별 답변 프레임워크 및 핵심 포인트 제공
+- **답변 스타일 학습**: 개인 답변 스타일 적용
 
-### 3. 💬 면접 준비 (Interview)
-- **예상 질문 생성**: 자소서와 기업 분석 데이터를 바탕으로 맞춤형 면접 질문 생성
-- **답변 컨설팅**: 각 질문에 대한 모범 답변과 전략 제공
-- **스타일 학습**: 면접 답변 스타일 학습 및 적용
+#### 4. 경험 분석 (STAR)
+- 텍스트 또는 파일(PDF·DOCX·HWP) 업로드 시 LLM이 STAR 구조로 자동 분류
+- 리더십·창의성·분석력·공감능력 등 성향 점수 산출
+- 분석 결과를 자소서 작성 시 RAG로 즉시 활용
 
-```mermaid
-flowchart LR
-    subgraph Source["입력"]
-        A[자기소개서]
-        B[기업 분석]
-        C[답변 스타일]
-    end
-    
-    subgraph Generate["생성"]
-        D[질문 생성]
-        E[답변 전략]
-        F[모범 답변]
-    end
-    
-    A --> D
-    B --> D
-    C --> E
-    D --> E
-    D --> F
-    
-    style D fill:#FFE66D
-    style E fill:#4ECDC4
-    style F fill:#96CEB4
-```
-
----
-
-### 4. 📊 경험 분석 (Sentiment Analysis)
-- **STAR 기법 분석**: 경험을 Situation, Task, Action, Result로 구조화
-- **성향 분석**: 경험에서 드러나는 리더십, 창의성, 공감능력 등 성향 파악
-- **자소서 소재 발굴**: 분석된 경험을 자소서 작성에 직접 활용
+### 아키텍처
 
 ```mermaid
 flowchart TB
-    A[경험 텍스트 입력] --> B[LLM 분석]
-    
-    B --> C[STAR 구조화]
-    B --> D[성향 분석]
-    
-    subgraph STAR["STAR 기법"]
-        C --> C1[Situation]
-        C --> C2[Task]
-        C --> C3[Action]
-        C --> C4[Result]
+    subgraph FE["Frontend (React 19 + Vite)"]
+        UI[페이지 컴포넌트]
     end
-    
-    subgraph Personality["성향 점수"]
-        D --> D1[리더십]
-        D --> D2[창의성]
-        D --> D3[분석력]
-        D --> D4[공감능력]
-    end
-    
-    C1 & C2 & C3 & C4 --> E[(DB 저장)]
-    D1 & D2 & D3 & D4 --> E
-    
-    style B fill:#FF6B6B
-    style E fill:#4ECDC4
-```
 
----
-
-### 5. 🗂️ 경험 관리 시스템 (Experience Management)
-- **나만의 경험 아카이빙**: 프로젝트, 인턴, 동아리 등 다양한 경험을 체계적으로 저장
-- **자동 파일 분석**: PDF, DOCX, **HWP** 파일을 업로드하면 AI가 내용을 자동 추출 및 요약
-- **STAR 자동 분류**: 입력된 경험을 LLM이 분석하여 STAR(Situation, Task, Action, Result) 프레임워크로 자동 변환 저장
-- **자소서 활용**: 저장된 경험을 자기소개서 작성 시 클릭 한 번으로 불러오기 (RAG)
-
-```mermaid
-flowchart LR
-    A[파일 업로드] --> B(텍스트 추출)
-    B --> C{LLM 분석}
-    
-    D[직접 입력] --> C
-    
-    C --> E[STAR 구조화]
-    E --> F[(DB 저장)]
-    
-    F --> G[자소서 작성 시 활용]
-    
-    style C fill:#FF6B6B
-    style F fill:#4ECDC4
-```
-
----
-
-## � 전체 시스템 아키텍처
-
-```mermaid
-flowchart TB
-    subgraph Client["Frontend (React + Vite)"]
-        UI[사용자 인터페이스]
-        Store[Zustand/Context]
+    subgraph BFF["Node.js BFF (tRPC + Drizzle ORM)"]
+        TRPC[tRPC 라우터]
+        Auth[로컬 인증]
+        LLMHelper[LLM 헬퍼]
     end
-    
-    subgraph NodeServer["Node.js Server (BFF)"]
-        TRPC[tRPC Router]
-        Auth[인증 (Auth.js)]
-        Drizzle[Drizzle ORM]
-        NodeLLM[LLM Helper (LangChain)]
+
+    subgraph PY["Python Backend (FastAPI)"]
+        Endpoints[API 엔드포인트]
+        Parser[문서 파서]
+        RAG[RAG / 벡터 스토어]
     end
-    
-    subgraph PythonServer["Python Backend (FastAPI)"]
-        FastAPI[API Endpoints]
-        DocParser[문서 파서 (HWP/PDF)]
-        PyLLM[RAG / Vector Store]
+
+    subgraph AI["LLM"]
+        Ollama[Ollama - qwen3-next:80b]
+        OpenAI[OpenAI GPT - 선택]
     end
-    
-    subgraph External["외부 AI/API"]
-        Gemini[Google Gemini]
-        Groq[Groq (Llama)]
-        DART[DART/NPS 공시정보]
+
+    subgraph DB["데이터"]
+        SQLite[(SQLite - 개발)]
+        MySQL[(MySQL 8 - 프로덕션)]
+        DART[DART / NPS API]
     end
-    
-    subgraph Infr["인프라/DB"]
-        MySQL[(MySQL 8.0)]
-        vLLM[Local LLM (Optional)]
-    end
-    
-    %% Flow
-    UI <-->|"API (Queries/Mutations)"| TRPC
-    UI --"파일 업로드 (분석)"--> FastAPI
-    
-    TRPC --> Drizzle
-    TRPC --> NodeLLM
+
+    UI <-->|쿼리/뮤테이션| TRPC
+    UI -->|파일 업로드| Endpoints
+    TRPC --> LLMHelper
+    TRPC --> Auth
     TRPC --> DART
-    
-    NodeLLM <--> Gemini
-    NodeLLM --> Groq
-    
-    FastAPI --> DocParser
-    FastAPI --> MySQL
-    FastAPI -.-> vLLM
-    
-    Drizzle <--> MySQL
-    
-    style Gemini fill:#FF6B6B
-    style MySQL fill:#4ECDC4
-    style PythonServer fill:#FFE66D
-    style NodeServer fill:#96CEB4
+    LLMHelper <--> Ollama
+    LLMHelper -.-> OpenAI
+    Endpoints --> Parser
+    Endpoints --> RAG
+    RAG <--> Ollama
+    TRPC <--> MySQL
+    Endpoints <--> SQLite
 ```
 
----
+### 데이터베이스 ERD
 
-## 🛠️ 기술 스택
+```mermaid
+erDiagram
+    style_profiles {
+        int id PK
+        string name UK
+        string description
+        json tone_patterns
+        json structure_rules
+        json expression_dict
+        json good_examples
+        json bad_examples
+        float confidence_score
+        int sample_count
+        datetime created_at
+        datetime updated_at
+    }
+
+    explicit_rules {
+        int id PK
+        int style_id FK
+        string rule_type
+        text description
+        text example_text
+        bool is_active
+        int priority
+        string detected_from
+        datetime created_at
+    }
+
+    writing_sessions {
+        int id PK
+        int style_id FK
+        string context_type
+        text initial_prompt
+        text final_output
+        int revision_count
+        datetime started_at
+        datetime completed_at
+    }
+
+    version_histories {
+        int id PK
+        int session_id FK
+        int version_num
+        text content
+        text diff_from_prev
+        string edit_type
+        datetime created_at
+    }
+
+    change_logs {
+        int id PK
+        int version_id FK
+        string change_type
+        text original_text
+        text changed_text
+        string reason_category
+    }
+
+    analysis_sessions {
+        int id PK
+        string file_name
+        string file_type
+        string file_path
+        text raw_text
+        json analysis_result
+        json financial_data
+        json chat_history
+        datetime created_at
+    }
+
+    learning_logs {
+        int id PK
+        datetime learned_at
+        int samples_count
+        json metrics
+        string model_checkpoint
+    }
+
+    style_updates {
+        int id PK
+        int log_id FK
+        int style_id FK
+        json before_params
+        json after_params
+        float improvement_score
+    }
+
+    successful_examples {
+        int id PK
+        text content
+        json analysis
+        string category
+        datetime created_at
+    }
+
+    style_profiles ||--o{ explicit_rules : "has"
+    style_profiles ||--o{ writing_sessions : "used in"
+    style_profiles ||--o{ style_updates : "updated by"
+    writing_sessions ||--o{ version_histories : "has"
+    version_histories ||--o{ change_logs : "records"
+    learning_logs ||--o{ style_updates : "contains"
+```
+
+### 기술 스택
 
 | 영역 | 기술 |
-|------|------|
-| **Backend (Node.js)** | Express.js, tRPC, Drizzle ORM |
-| **Backend (Python)** | **FastAPI** (File Processing/OCR), SQLAlchemy |
+|---|---|
 | **Frontend** | React 19, Vite, TailwindCSS, Shadcn/ui |
-| **AI/LLM** | Gemini 2.5 Flash, Groq (Llama 3), **vLLM (Local)** |
-| **Database** | MySQL 8.0+ |
-| **External APIs** | DART(전자공시), NPS(국민연금) |
+| **BFF (Node.js)** | tRPC v11, Drizzle ORM, MySQL2 |
+| **Backend (Python)** | FastAPI 0.115, SQLAlchemy 2, Alembic |
+| **LLM** | Ollama (`qwen3-next:80b`), OpenAI GPT (선택) |
+| **문서 파싱** | Docling, PyHWP, python-docx, pypdf, pdfplumber |
+| **DB** | SQLite (개발) / MySQL 8.0 (프로덕션) |
+| **외부 API** | DART(전자공시), NPS(국민연금) |
 
----
+### 설치 및 실행
 
-## 🚀 설치 및 실행
+**사전 요구사항**
 
-### 1. 사전 요구사항
+- Python 3.11+
 - Node.js 18+
-- Python 3.10+
-- MySQL 8.0+
+- Ollama (`ollama run qwen3-next:80b`)
+- MySQL 8.0+ (프로덕션) 또는 SQLite (개발 기본값)
 
-### 2. 설치
+**백엔드 (Python)**
 
-**Frontend (Node.js)**
+```bash
+python3 -m venv .venv
+source .venv/bin/activate        # Windows: .venv\Scripts\activate
+pip install -r requirements.txt
+./start.sh                       # uvicorn :8000 시작
+```
+
+**프론트엔드 (Node.js)**
+
 ```bash
 cd front
 npm install
-cd ..
+npm run dev                      # :5173 시작
 ```
 
-**Backend (Python)**
-```bash
-# 가상환경 생성 및 라이브러리 설치
-python3 -m venv .venv
-source .venv/bin/activate  # Windows: .venv\Scripts\activate
-pip install -r requirements.txt
-```
-
-### 3. 환경 변수 설정
-`.env` 파일을 프로젝트 루트에 생성:
+**환경 변수** — 루트에 `.env` 생성:
 
 ```env
-# Database
-DATABASE_URL=mysql://user:password@localhost:3306/jasos
+DATABASE_URL=sqlite:///./data/db/jasos.db
 
-# LLM Keys
-GEMINI_API_KEY=your_gemini_key
-GROK_API_KEY=your_grok_key
 OLLAMA_BASE_URL=http://localhost:11434
+OLLAMA_MODEL=qwen3-next:80b
+OPENAI_API_KEY=                  # 선택
 
-# External APIs
 DART_API_KEY=your_dart_key
 NPS_API_KEY=your_nps_key
 ```
 
-### 4. 실행
-
-**전체 시스템 시작 (권장)**
-```bash
-./start.sh
-# 백엔드(:8000) 실행 및 파일 감시
-```
-
-**프론트엔드 시작 (별도 터미널)**
-```bash
-cd front
-npm run dev
-# 프론트엔드(:5173) 실행
-```
+**API 문서**: `http://localhost:8000/docs`
 
 ---
 
-## 📂 프로젝트 구조
+## DocMaster AI
 
-```
-jasoS/
-├── app/                        # Python Backend (FastAPI)
-│   ├── main.py                 # 앱 진입점
-│   ├── modules/                # 기능 모듈 (Learning, Analysis, etc.)
-│   └── core/                   # DB, Config 설정
-├── front/                      # TypeScript Frontend/BFF
-│   ├── client/src/pages/       # React Pages
-│   │   ├── MyPage.tsx          # 경험 관리 (NEW)
-│   │   ├── Writing.tsx         # 자소서 작성
-│   │   └── CorporateAnalysis.tsx
-│   └── server/                 # tRPC Routers
-│       ├── routers.ts          # API Endpoints
-│       └── llm-helpers.ts      # Node.js LLM Logic
-├── requirements.txt            # Python 의존성
-├── start.sh                    # 서버 시작 스크립트
-└── .env                        # 환경 변수
-```
+GTX 1660S(6GB VRAM) 환경에서 로컬 LLM만으로 취업 문서를 자동 평가·개선합니다. 합격/불합격 패턴 학습을 통해 문서를 합격 수준으로 끌어올리는 자기강화 파이프라인을 구현합니다.
 
----
+> 자세한 내용 → [`docmaster/`](./docmaster/)
 
-## 🔐 인증 시스템 수정 (2026-01-25)
+### 핵심 개념
 
-### 변경 사항 요약
+| 개념 | 설명 |
+|---|---|
+| **LLM-as-a-Judge** | 5개 척도(요구충족도·구조·표현력·구체성·차별화) 가중 평가 |
+| **Gleaning Loop** | Judge 피드백 → 단락 재작성 → 재평가 (최대 5회 반복) |
+| **BM25 + SBERT** | 하이브리드 갭 분석 + 할루시네이션 드리프트 감지 |
+| **SFT + DPO** | 합격 문서 스타일 미세조정 (Google Colab Pro) |
+| **자동 배포** | Colab 학습 완료 → Google Drive → 로컬 vLLM 자동 이식 |
 
-#### 1. User 스키마 수정
-**파일**: `drizzle/schema.ts`
-
-- `users` 테이블에 `username` 필드 추가
-- 로컬 인증 시스템에서 사용하는 username을 User 타입에서 정식으로 지원
-
-```diff
- openId: varchar("openId", { length: 64 }).notNull().unique(),
-+/** Username for local authentication */
-+username: varchar("username", { length: 64 }),
- name: text("name"),
-```
-
----
-
-#### 2. Context 타입 변환 수정
-**파일**: `server/_core/context.ts`
-
-- `username` 필드를 올바른 위치에 배치
-- `updatedAt` 필드 추가 (스키마에서 notNull로 정의됨)
-- `as any` 타입 캐스팅을 `as User`로 변경하여 타입 안전성 향상
-
-```diff
- user = {
-   id: localUser.id,
-   openId: `local_${localUser.id}`,
-+  username: localUser.username,
-   name: localUser.name,
-   email: null,
--  role: localUser.role as any,
-+  role: localUser.role,
-   loginMethod: "local",
-   lastSignedIn: new Date(),
-   createdAt: localUser.createdAt || new Date(),
--  username: localUser.username,
--} as any;
-+  updatedAt: new Date(),
-+} as User;
-```
-
----
-
-#### 수정된 인증 흐름
+### 전체 흐름
 
 ```mermaid
-sequenceDiagram
-    participant Client as 프론트엔드
-    participant Server as 백엔드
-    participant Auth as auth.ts
-    participant Context as context.ts
-    participant Cookie as 쿠키
+graph TD
+    User([사용자]) -->|파일 업로드 HWP/PDF/DOCX| Parser[문서 파서]
+    Parser -->|Markdown| Writer[Writer Service]
+    JD[채용공고 JD] --> Writer
+    Writer -->|초안 생성| Gleaning[Gleaning Loop]
 
-    Note over Client,Cookie: 회원가입/로그인 흐름
-    Client->>Server: POST /api/trpc/auth.login or auth.register
-    Server->>Auth: loginUser() / registerUser()
-    Auth-->>Server: { success, user }
-    Server->>Cookie: Set jasos_user_id cookie
-    Server-->>Client: { success, user }
+    subgraph 자기강화 파이프라인
+        Gleaning -->|평가| Judge[Judge - 5개 척도]
+        Judge -->|rubric failures| Rewriter[단락 재작성]
+        Rewriter -->|SBERT 드리프트 검증| Gleaning
+    end
 
-    Note over Client,Cookie: 인증된 요청 흐름
-    Client->>Server: Any tRPC request (with cookie)
-    Server->>Context: createContext()
-    Context->>Cookie: Parse jasos_user_id
-    Context->>Auth: getUserById()
-    Auth-->>Context: LocalUser
-    Context->>Context: Convert to User type (fixed!)
-    Context-->>Server: { req, res, user }
+    Gleaning -->|합격 점수 달성| Output[최종 문서]
+    Output --> DPO[DPO 학습 데이터 수집]
+
+    subgraph 자기강화 학습 Colab
+        DPO --> SFT[SFT 학습]
+        SFT --> LoRA[LoRA 병합]
+        LoRA --> AWQ[AWQ 4-bit 변환]
+        AWQ --> Drive[Google Drive 업로드]
+    end
+
+    Drive -->|자동 감지| Watcher[watch_and_deploy.py]
+    Watcher -->|docker compose restart| vLLM[vLLM - GTX 1660S]
+```
+
+### 데이터베이스 ERD
+
+```mermaid
+erDiagram
+    documents {
+        uuid id PK
+        enum doc_type "자기소개서 경력기술서 지원서"
+        enum org_type "PUBLIC PRIVATE"
+        string company_name
+        enum result_label "PASS FAIL"
+        text parsed_markdown
+        jsonb structured_json
+        string embedding_id
+        datetime created_at
+    }
+
+    evaluation_rubrics {
+        uuid id PK
+        string rubric_name UK
+        enum org_type
+        string dimension
+        text score_1_desc
+        text score_5_desc
+        float weight
+    }
+
+    gleaning_sessions {
+        uuid id PK
+        uuid document_id FK
+        float initial_score
+        float final_score
+        int total_iterations
+        enum status "RUNNING PASSED MAX_ITER"
+        jsonb rewrite_log
+        datetime created_at
+    }
+
+    evaluation_results {
+        uuid id PK
+        uuid document_id FK
+        uuid rubric_id FK
+        uuid gleaning_session_id FK
+        int iteration_num
+        jsonb dimension_scores
+        float total_score
+        bool pass_fail
+        jsonb feedback_json
+        datetime created_at
+    }
+
+    training_datasets {
+        uuid id PK
+        enum dataset_type "SFT DPO"
+        uuid source_doc_id FK
+        text prompt
+        text chosen
+        text rejected
+        float reward_score
+        datetime created_at
+    }
+
+    doc_style_patterns {
+        uuid id PK
+        enum org_type
+        jsonb section_structure
+        jsonb writing_rules
+        jsonb keyword_patterns
+        jsonb tone_profile
+        float pass_rate
+        datetime updated_at
+    }
+
+    documents ||--o{ gleaning_sessions : "has"
+    documents ||--o{ evaluation_results : "receives"
+    documents ||--o{ training_datasets : "generates"
+    gleaning_sessions ||--o{ evaluation_results : "logs"
+    evaluation_rubrics ||--o{ evaluation_results : "defines"
+```
+
+### 환경 구성
+
+| 컴포넌트 | 실행 환경 | 포트 |
+|---|---|---|
+| FastAPI 앱 서버 | Windows 네이티브 | 9000 |
+| vLLM (Qwen3.5-4B AWQ) | Docker 컨테이너 | 8000 |
+| PostgreSQL 16 | Windows 네이티브 | 5432 |
+| Redis (Memurai) | Windows 네이티브 | 6379 |
+| ChromaDB | Windows 네이티브 | 8100 |
+
+### 지원 파일 형식
+
+| 형식 | 파서 체인 |
+|---|---|
+| `.hwp` | hwp5txt CLI → pyhwp API → Docling |
+| `.hwpx` | ZIP+XML 직접 파싱 → Docling |
+| `.pdf` | Docling → pdfplumber → pypdf |
+| `.docx` | Docling → python-docx (표·스타일 보존) |
+| `.doc` / `.odt` / `.rtf` | Docling |
+| `.txt` / `.md` | chardet 인코딩 감지 (EUC-KR/CP949/UTF-8) |
+
+### 설치 (Windows 11)
+
+```powershell
+# 1. Google Drive OAuth2 인증 (최초 1회)
+.\docmaster\scripts\deploy_local.ps1 -Auth
+
+# 2. 환경 셋업 (Python 가상환경 + DB + Docker vLLM)
+cd docmaster
+.\setup_windows.ps1
+
+# 3. FastAPI 서버 시작
+uvicorn app.main:app --host 0.0.0.0 --port 9000 --reload
+
+# 4. 자동 배포 데몬 시작 (Colab 학습 감지)
+.\scripts\deploy_local.ps1
+```
+
+**환경 변수** — `docmaster/.env` 생성 (`.env.example` 참고):
+
+```env
+POSTGRES_HOST=localhost
+POSTGRES_DB=docmaster_db
+POSTGRES_USER=docmaster
+POSTGRES_PASSWORD=your_pw
+
+VLLM_BASE_URL=http://localhost:8000
+MODEL_NAME=cyankiwi/Qwen3.5-4B-Instruct-AWQ-4bit
+
+DART_API_KEY=your_dart_key
+HF_TOKEN=your_huggingface_token
+```
+
+**API 문서**: `http://localhost:9000/docs`
+
+### Colab 학습 → 자동 배포
+
+```python
+# Google Colab에서 실행
+!pip install -q autoawq trl peft transformers datasets google-api-python-client
+from google.colab import drive; drive.mount('/content/drive')
+
+# SFT → DPO → LoRA 병합 → AWQ 변환 → Google Drive 업로드 → 배포 트리거
+exec(open('/content/drive/MyDrive/docmaster/training/deploy_pipeline.py').read())
+```
+
+로컬에서 `deploy_local.ps1` 데몬이 실행 중이면 학습 완료 즉시 자동으로 vLLM에 이식됩니다.
+
+---
+
+## 레포지토리 구조
+
+```
+ME/
+├── app/                        # JasoS — Python Backend (FastAPI)
+│   ├── main.py
+│   ├── core/                   # DB, Config
+│   └── modules/                # analysis, learning, writing, interview, style
+├── front/                      # JasoS — TypeScript Frontend + BFF
+│   ├── client/src/pages/       # React 페이지
+│   └── server/                 # tRPC 라우터, LLM 헬퍼
+├── front-svelte/               # JasoS — Svelte 버전 (실험적)
+├── RAG/                        # 재무 문서 RAG 챗봇 (독립 모듈)
+├── docmaster/                  # DocMaster AI — 문서 평가·개선 시스템
+│   ├── app/                    # FastAPI 앱
+│   │   ├── models/             # DB 스키마 (6개 테이블)
+│   │   ├── services/           # vLLM 클라이언트, 파서, Judge, Writer, Gleaning
+│   │   ├── prompts/            # Writer / Judge / Gleaning 프롬프트 템플릿
+│   │   └── api/v1/             # REST 엔드포인트
+│   ├── alembic/                # DB 마이그레이션
+│   ├── training/               # Colab 학습 + 자동 배포 파이프라인
+│   ├── scripts/                # 데이터 관리, 자동 배포 데몬
+│   ├── docker-compose.yml      # vLLM Docker 설정
+│   └── setup_windows.ps1       # Windows 원클릭 셋업
+├── requirements.txt            # JasoS Python 의존성
+└── start.sh                    # JasoS 서버 시작 스크립트
 ```
 
 ---
 
-## 📝 라이선스
+## 라이선스
 
 MIT License
