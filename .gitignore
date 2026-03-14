@@ -54,6 +54,18 @@ data/
 !data/learning/styles/README.md
 uploads/
 
+# ML / Vector Index artifacts
+*.faiss
+*.pkl
+*.bin
+*.safetensors
+RAG/faiss_index/
+
+# Large media & documents
+*.pdf
+*.pptx
+*.ppt
+
 # OS
 .DS_Store
 Thumbs.db
