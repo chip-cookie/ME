@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>모닝경제 - 뉴스 요약 봇</title>
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .custom-scrollbar::-webkit-scrollbar {
+            width: 6px;
+        }
+        .custom-scrollbar::-webkit-scrollbar-track {
+            background: #f5f5f4;
+        }
+        .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: #d6d3d1;
+            border-radius: 3px;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        @keyframes slideInFromBottom {
+            from { transform: translateY(20px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        @keyframes zoomIn {
+            from { transform: scale(0.95); opacity: 0; }
+            to { transform: scale(1); opacity: 1; }
+        }
+        .animate-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        .fade-in {
+            animation: fadeIn 0.3s ease-out;
+        }
+        .slide-in-from-bottom-4 {
+            animation: slideInFromBottom 0.5s ease-out;
+        }
+        .zoom-in {
+            animation: zoomIn 0.5s ease-out;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState, useEffect } = React;
+
+        // Lucide Icons (간단한 SVG 아이콘 컴포넌트)
+        const Settings = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="12" cy="12" r="3"></circle>
+                <path d="M12 1v6m0 6v6m-8-8h6m6 0h6"></path>
+                <path d="m19.07 4.93-1.41 1.41M6.34 17.66l-1.41 1.41m12.73 0-1.41-1.41M6.34 6.34 4.93 4.93"></path>
+            </svg>
+        );
+
+        const Search = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <circle cx="11" cy="11" r="8"></circle>
+                <path d="m21 21-4.35-4.35"></path>
+            </svg>
+        );
+
+        const RefreshCw = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"></path>
+                <path d="M21 3v5h-5"></path>
+                <path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"></path>
+                <path d="M3 21v-5h5"></path>
+            </svg>
+        );
+
+        const FileText = ({ size = 24, className = "", fill = "none" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                <polyline points="14 2 14 8 20 8"></polyline>
+                <line x1="16" y1="13" x2="8" y2="13"></line>
+                <line x1="16" y1="17" x2="8" y2="17"></line>
+                <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+        );
+
+        const Copy = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+        );
+
+        const Zap = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+        );
+
+        const Activity = ({ size = 24, className = "" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline>
+            </svg>
+        );
+
+        const BookOpen = ({ size = 24, className = "", fill = "none" }) => (
+            <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>
+                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path>
+                <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path>
+            </svg>
+        );
+
+        const MorningEconomy_Final = () => {
+            const [config, setConfig] = useState({ googleKey: '' });
+            const [selectedModel, setSelectedModel] = useState('');
+            const [isProcessing, setIsProcessing] = useState(false);
+            const [statusMsg, setStatusMsg] = useState('준비 완료');
+            const [toast, setToast] = useState({ show: false, msg: '' });
+            const [fng, setFng] = useState(null);
+            const [newsData, setNewsData] = useState({ kr: [], us: [], coin: [] });
+            const [activeTab, setActiveTab] = useState('kr');
+
+            const sectors = [
+                { id: 'kr', name: '🇰🇷 한국', query: '경제 OR 주식 OR 금융', lang: 'ko' },
+                { id: 'us', name: '🇺🇸 미국', query: 'US Economy OR Stock Market', lang: 'en' },
+                { id: 'coin', name: '💰 코인', query: 'Bitcoin OR Crypto', lang: 'en' },
+            ];
+
+            useEffect(() => {
+                try {
+                    const savedKey = localStorage.getItem('morningFinal_Key');
+                    const savedModel = localStorage.getItem('morningFinal_Model');
+                    if (savedKey) setConfig({ googleKey: savedKey });
+                    if (savedModel) setSelectedModel(savedModel);
+                } catch (e) {}
+                fetchFNG();
+            }, []);
+
+            const fetchFNG = async () => {
+                try {
+                    const res = await fetch('https://api.alternative.me/fng/');
+                    const data = await res.json();
+                    setFng(data.data[0]);
+                } catch (e) {}
+            };
+
+            const showToast = (msg) => {
+                setToast({ show: true, msg });
+                setTimeout(() => setToast({ show: false, msg: '' }), 2000);
+            };
+
+            // 1. 모델 스캔 (안전 로직)
+            const scanAndSave = async () => {
+                if (!config.googleKey) return alert('키를 입력하세요.');
+                const key = config.googleKey.trim();
+                setStatusMsg('📡 모델 찾는 중...');
+                try {
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${key}`);
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error.message);
+                    const validModels = data.models?.filter(m => m.supportedGenerationMethods?.includes('generateContent')) || [];
+                    if (validModels.length > 0) {
+                        const best = validModels.find(m => m.name.includes('flash')) || validModels.find(m => m.name.includes('pro')) || validModels[0];
+                        setSelectedModel(best.name);
+                        localStorage.setItem('morningFinal_Key', key);
+                        localStorage.setItem('morningFinal_Model', best.name);
+                        alert(`✅ 연결 성공!\n모델: ${best.name.split('/')[1]}`);
+                        setStatusMsg('준비 완료');
+                    } else {
+                        throw new Error('사용 가능한 모델 없음');
+                    }
+                } catch (e) {
+                    alert(`❌ 연결 실패: ${e.message}`);
+                    setStatusMsg('연결 실패');
+                }
+            };
+
+            // HTML 태그 청소
+            const cleanText = (html) => {
+                try {
+                    const doc = new DOMParser().parseFromString(html, 'text/html');
+                    return doc.body.textContent || "";
+                } catch (e) {
+                    return "";
+                }
+            };
+
+            // 2. AI 요약 (프롬프트 최종 수정: 이모지 O, 별표 X)
+            const summarizeNews = async (title, snippet) => {
+                if (!selectedModel) return snippet;
+                try {
+                    const modelName = selectedModel.startsWith('models/') ? selectedModel.replace('models/', '') : selectedModel;
+                    const prompt = `
+Role: Professional Financial Analyst.
+Task: Summarize this news into Korean.
+Constraints:
+    Language: Korean ONLY.
+    Length: 6 to 8 bullet points.
+    Formatting:
+        Start each point with an emoji (e.g., 📈, 📉, 💰, 🚨, 💡).
+        DO NOT use markdown bold markers (**).
+        Make it easy to read.
+    Content: Focus on facts and market impact.
+
+Title: "${title}"
+Content: "${snippet}"
+`;
+
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${config.googleKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+                    });
+                    const data = await res.json();
+                    if (data.candidates && data.candidates[0].content) {
+                        // 혹시라도 AI가 별표를 쓰면 한번 더 지움
+                        let text = data.candidates[0].content.parts[0].text;
+                        return text.replace(/\*\*/g, "").replace(/##/g, "").trim();
+                    }
+                    return `(AI 응답 없음) ${snippet}`;
+                } catch (e) {
+                    return `(통신 오류) ${snippet}`;
+                }
+            };
+
+            // 3. 브리핑 시작
+            const startBriefing = async () => {
+                if (!selectedModel) return alert('설정(⚙️)에서 키를 저장하고 스캔해주세요.');
+                setIsProcessing(true);
+                setNewsData({ kr: [], us: [], coin: [] });
+
+                for (const sector of sectors) {
+                    setStatusMsg(`🔎 ${sector.name} 중요 뉴스 수집 중...`);
+                    try {
+                        // 타임스탬프로 최신 뉴스 강제 (구글 랭킹순)
+                        const rssUrl = `https://news.google.com/rss/search?q=${encodeURIComponent(sector.query)}&hl=${sector.lang === 'ko' ? 'ko' : 'en-US'}&gl=${sector.lang === 'ko' ? 'KR' : 'US'}&ceid=${sector.lang === 'ko' ? 'KR:ko' : 'US:en'}`;
+                        const res = await fetch(`https://api.rss2json.com/v1/api.json?rss_url=${encodeURIComponent(rssUrl)}&t=${Date.now()}`);
+                        const data = await res.json();
+
+                        if (!data.items) throw new Error('뉴스 없음');
+
+                        const currentSectorNews = [];
+                        let count = 0;
+
+                        // 상위 15개 중 3개 선별
+                        for (const item of data.items) {
+                            if (count >= 3) break;
+                            const rawSnippet = item.contentSnippet || item.description || "";
+                            const cleanSnippet = cleanText(rawSnippet);
+
+                            // 내용이 너무 짧으면 패스
+                            if (cleanSnippet.length < 10) continue;
+
+                            setStatusMsg(`📝 ${sector.name} 분석 (${count + 1}/3)...`);
+                            const summary = await summarizeNews(item.title, cleanSnippet);
+
+                            currentSectorNews.push({
+                                title: item.title.replace(/\*\*/g, ""), // 제목 별표도 제거
+                                link: item.link,
+                                summary: summary,
+                            });
+
+                            count++;
+
+                            // AI 과부하 방지 (1.2초)
+                            await new Promise(r => setTimeout(r, 1200));
+                        }
+
+                        setNewsData(prev => ({ ...prev, [sector.id]: currentSectorNews }));
+                    } catch (e) {
+                        console.error(e);
+                        setStatusMsg(`❌ ${sector.name} 오류`);
+                    }
+                }
+
+                setIsProcessing(false);
+                setStatusMsg('🎉 브리핑 완료!');
+                alert('오늘의 주요 뉴스가 도착했습니다!');
+            };
+
+            const handleCopyLink = (url) => {
+                if (!url) return;
+                const textArea = document.createElement("textarea");
+                textArea.value = url;
+                document.body.appendChild(textArea);
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    showToast("링크 복사 완료!");
+                } catch (err) {
+                    showToast("복사 실패");
+                }
+                document.body.removeChild(textArea);
+            };
+
+            const getFngColor = (value) => {
+                if (value >= 75) return 'bg-green-500';
+                if (value >= 50) return 'bg-green-400';
+                if (value >= 25) return 'bg-orange-400';
+                return 'bg-red-500';
+            };
+
+            return (
+                <div className="min-h-screen bg-stone-50 font-sans text-stone-800 flex justify-center pb-10 relative">
+                    {toast.show && (
+                        <div className="fixed bottom-10 left-1/2 transform -translate-x-1/2 z-50 animate-in fade-in slide-in-from-bottom-4">
+                            <div className="bg-stone-800 text-white px-4 py-2 rounded-full shadow-xl text-xs font-bold">
+                                {toast.msg}
+                            </div>
+                        </div>
+                    )}
+
+                    <div className="w-full max-w-md bg-white shadow-xl min-h-screen flex flex-col border-x border-stone-200">
+                        {/* 헤더 */}
+                        <header className="px-6 pt-6 pb-4 bg-white sticky top-0 z-30 border-b border-stone-100">
+                            <div className="flex justify-between items-start mb-4">
+                                <div>
+                                    <h1 className="text-2xl font-black text-stone-900 tracking-tight flex items-center gap-2">
+                                        <BookOpen className="text-amber-600" fill="currentColor" size={24} />
+                                        모닝경제
+                                    </h1>
+                                    <p className="text-[10px] text-stone-400 font-bold">Premium Edition</p>
+                                </div>
+                                <div className="relative group">
+                                    <button className="p-2 bg-stone-100 rounded-full hover:bg-stone-200 transition-colors">
+                                        <Settings size={18} className="text-stone-600"/>
+                                    </button>
+                                    <div className="absolute right-0 mt-2 w-72 bg-white border border-stone-200 shadow-xl rounded-xl p-4 hidden group-hover:block z-30">
+                                        <label className="text-[10px] font-bold text-stone-500 mb-1 block">Google API Key</label>
+                                        <input
+                                            type="password"
+                                            value={config.googleKey}
+                                            onChange={(e) => setConfig({ googleKey: e.target.value })}
+                                            className="w-full p-2 border rounded text-xs mb-2 outline-none focus:border-amber-500 bg-stone-50"
+                                            placeholder="AIza..."
+                                        />
+                                        <button onClick={scanAndSave} className="w-full py-2 bg-stone-800 text-white text-xs font-bold rounded hover:bg-black transition-colors flex items-center justify-center gap-2">
+                                            <Search size={12}/> 저장 및 모델 스캔
+                                        </button>
+                                        {selectedModel && (
+                                            <div className="mt-2 p-2 bg-green-50 text-green-700 rounded text-[10px] font-bold text-center border border-green-100">
+                                                ✅ 연결됨: {selectedModel.replace('models/', '')}
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* 공포/탐욕 지수 배너 */}
+                            {fng && (
+                                <div className="bg-stone-900 rounded-xl p-3 text-white shadow-lg flex items-center justify-between animate-in fade-in zoom-in duration-500">
+                                    <div className="flex items-center gap-3">
+                                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-black text-sm shadow-inner ${getFngColor(fng.value)} text-white`}>
+                                            {fng.value}
+                                        </div>
+                                        <div>
+                                            <p className="text-[10px] text-stone-400 uppercase font-bold tracking-wider">Crypto Fear & Greed</p>
+                                            <p className="text-sm font-bold leading-none mt-0.5">{fng.value_classification}</p>
+                                        </div>
+                                    </div>
+                                    <Activity size={20} className="text-stone-500 opacity-50"/>
+                                </div>
+                            )}
+                        </header>
+
+                        {/* 상태창 및 버튼 */}
+                        <div className="px-6 py-4 bg-white z-20">
+                            <div className={`mb-4 p-3 rounded-xl text-center text-xs font-bold transition-all border ${
+                                isProcessing
+                                    ? 'bg-amber-50 text-amber-700 border-amber-100 animate-pulse'
+                                    : 'bg-stone-50 text-stone-500 border-stone-100'
+                            }`}>
+                                {isProcessing ? <RefreshCw className="inline animate-spin mr-2" size={12}/> : <Zap className="inline mr-2" size={12}/>}
+                                {statusMsg}
+                            </div>
+
+                            <button
+                                onClick={startBriefing}
+                                disabled={isProcessing}
+                                className={`w-full py-4 rounded-2xl font-bold text-lg text-white shadow-lg flex items-center justify-center gap-2 transition-all active:scale-95 ${
+                                    isProcessing
+                                        ? 'bg-stone-300 cursor-wait'
+                                        : 'bg-gradient-to-r from-amber-600 to-orange-600 hover:shadow-amber-200'
+                                }`}
+                            >
+                                {isProcessing ? '뉴스 분석 중...' : <><FileText fill="currentColor" size={18}/> 브리핑 시작</>}
+                            </button>
+                        </div>
+
+                        {/* 탭 메뉴 */}
+                        <div className="px-6 mt-2 flex gap-2 border-b border-stone-100 pb-0 bg-white z-20">
+                            {sectors.map(s => (
+                                <button
+                                    key={s.id}
+                                    onClick={() => setActiveTab(s.id)}
+                                    className={`flex-1 pb-3 text-sm font-bold transition-all border-b-2 ${
+                                        activeTab === s.id
+                                            ? 'text-stone-900 border-stone-900'
+                                            : 'text-stone-400 border-transparent hover:text-stone-600'
+                                    }`}
+                                >
+                                    {s.name} <span className="text-[10px] bg-stone-100 px-1.5 rounded-full text-stone-500">{newsData[s.id].length}</span>
+                                </button>
+                            ))}
+                        </div>
+
+                        {/* 뉴스 리스트 */}
+                        <div className="flex-1 bg-stone-50 p-4 overflow-y-auto custom-scrollbar">
+                            {newsData[activeTab].length === 0 ? (
+                                <div className="h-48 flex flex-col items-center justify-center text-stone-300">
+                                    <FileText size={48} className="mb-2 opacity-20"/>
+                                    <p className="text-xs">{isProcessing ? '뉴스를 가져오는 중입니다...' : '버튼을 눌러 시작하세요.'}</p>
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {newsData[activeTab].map((news, idx) => (
+                                        <div key={idx} className="bg-white p-5 rounded-2xl shadow-sm border border-stone-100 animate-in slide-in-from-bottom-4 duration-500">
+                                            <h3 className="text-md font-bold text-stone-800 mb-3 leading-snug pr-2">
+                                                {news.title}
+                                            </h3>
+                                            <div className="bg-amber-50/30 p-4 rounded-xl mb-3 border border-amber-100/50">
+                                                <p className="text-xs text-stone-600 leading-relaxed text-justify font-medium whitespace-pre-wrap">
+                                                    {news.summary}
+                                                </p>
+                                            </div>
+                                            <div className="flex justify-end items-center mt-1 pl-1">
+                                                <button
+                                                    onClick={() => handleCopyLink(news.link)}
+                                                    className="flex items-center gap-1.5 text-[11px] font-bold text-white bg-stone-800 hover:bg-black transition-colors px-4 py-2 rounded-lg shadow-md active:scale-95 cursor-pointer"
+                                                >
+                                                    <Copy size={12}/> 링크 복사
+                                                </button>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<MorningEconomy_Final />);
+    </script>
+</body>
+</html>
