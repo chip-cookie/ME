@@ -1,0 +1,247 @@
+제공해주신 텍스트 파일의 코드는 기능적으로 훌륭하지만, 실제 프로젝트(특히 FastAPI + Docker 환경)에 통합하기 위해서는 환경 변수 관리, 로깅, 정적 파일 마운트 설정이 체계적으로 잡혀야 합니다.
+
+사용자님의 프로젝트 구조(app/modules/...)에 딱 맞게 4단계로 나누어 리팩토링했습니다. 그대로 복사해서 각 파일 위치에 붙여넣으시면 됩니다.
+📂 프로젝트 폴더 구조 (예상)
+Plaintext
+
+/app
+├── core
+│   └── config.py          # (1) 경로 설정 관리
+├── modules
+│   ├── common
+│   │   └── utils
+│   │       └── image_processor.py  # (2) 이미지 처리 핵심 로직
+│   └── user
+│       └── routers
+│           └── profile.py     # (3) API 라우터
+└── main.py                    # (4) 정적 파일 마운트 설정
+
+1. 설정 관리 (app/core/config.py)
+
+하드코딩된 경로(data/uploads/...)를 없애고, 중앙에서 관리하도록 변경합니다.
+Python
+
+import os
+
+class Settings:
+    # 프로젝트 루트 기준 데이터 저장 경로
+    BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    DATA_DIR = os.path.join(BASE_DIR, "data")
+    
+    # 업로드 경로 설정
+    UPLOAD_DIR = os.path.join(DATA_DIR, "uploads")
+    PROFILE_DIR = os.path.join(UPLOAD_DIR, "profiles")
+    
+    # URL 접두사 (프론트엔드에서 접근할 경로)
+    STATIC_URL = "/static"
+
+settings = Settings()
+
+# 폴더가 없으면 미리 생성
+os.makedirs(settings.PROFILE_DIR, exist_ok=True)
+
+2. 이미지 프로세서 (app/modules/common/utils/image_processor.py)
+
+의 내용을 바탕으로 **에러 처리(Logging)**와 설정 파일 연동을 강화했습니다.
+Python
+
+import fitz  # PyMuPDF
+from PIL import Image
+import io
+import os
+import uuid
+import logging
+from typing import Optional
+from app.core.config import settings
+
+# 로거 설정
+logger = logging.getLogger(__name__)
+
+class ImageProcessor:
+    @staticmethod
+    def process_and_save(image_bytes: bytes, filename_prefix: str = "profile") -> str:
+        """
+        이미지 바이트 -> 리사이징(300x300 Center Crop) -> 저장 -> URL 반환
+        """
+        try:
+            # 1. 바이트 -> 이미지 객체
+            image = Image.open(io.BytesIO(image_bytes))
+            
+            # 2. 모드 변환 (PNG 투명값 호환)
+            if image.mode in ('RGBA', 'P'):
+                image = image.convert('RGB')
+
+            # 3. 스마트 리사이징 (Center Crop 로직)
+            target_size = (300, 300)
+            width, height = image.size
+            aspect_ratio = width / height
+            target_ratio = target_size[0] / target_size[1]
+            
+            if aspect_ratio > target_ratio:
+                new_height = target_size[1]
+                new_width = int(new_height * aspect_ratio)
+            else:
+                new_width = target_size[0]
+                new_height = int(new_width / target_ratio)
+                
+            img_resized = image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # 중앙 크롭 좌표 계산
+            left = (new_width - target_size[0]) / 2
+            top = (new_height - target_size[1]) / 2
+            right = (new_width + target_size[0]) / 2
+            bottom = (new_height + target_size[1]) / 2
+            
+            img_final = img_resized.crop((left, top, right, bottom))
+
+            # 4. 파일 저장
+            unique_filename = f"{filename_prefix}_{uuid.uuid4().hex[:8]}.jpg"
+            save_path = os.path.join(settings.PROFILE_DIR, unique_filename)
+            
+            img_final.save(save_path, "JPEG", quality=85)
+            logger.info(f"프로필 이미지 저장 완료: {save_path}")
+            
+            # 5. URL 반환 (예: /static/uploads/profiles/xxxx.jpg)
+            # 주의: main.py에서 '/static'을 'data' 폴더에 마운트해야 함
+            return f"{settings.STATIC_URL}/uploads/profiles/{unique_filename}"
+            
+        except Exception as e:
+            logger.error(f"이미지 처리 실패: {e}")
+            return f"{settings.STATIC_URL}/default_profile.png"
+
+    @staticmethod
+    def extract_from_pdf(pdf_path: str) -> Optional[str]:
+        """PDF 첫 페이지에서 가장 큰 이미지 추출"""
+        try:
+            doc = fitz.open(pdf_path)
+            if len(doc) < 1:
+                return None
+                
+            page = doc[0]
+            images = page.get_images()
+            
+            if not images:
+                return None
+                
+            # 가장 큰 이미지 찾기
+            best_xref = 0
+            max_area = 0
+            
+            for img in images:
+                xref = img[0]
+                width = img[1]
+                height = img[2]
+                area = width * height
+                
+                # 너무 작은 아이콘(50x50) 제외
+                if width < 50 or height < 50:
+                    continue
+                    
+                if area > max_area:
+                    max_area = area
+                    best_xref = xref
+                    
+            if best_xref == 0:
+                return None
+                
+            # 이미지 바이트 추출
+            extracted_image = doc.extract_image(best_xref)
+            image_bytes = extracted_image["image"]
+            
+            return ImageProcessor.process_and_save(image_bytes, "pdf_extracted")
+            
+        except Exception as e:
+            logger.error(f"PDF 이미지 추출 실패: {e}")
+            return None
+
+3. API 라우터 (app/modules/user/routers/profile.py)
+
+의 내용을 실제 라우터에 적용합니다.
+Python
+
+from fastapi import APIRouter, UploadFile, File, HTTPException
+from app.modules.common.utils.image_processor import ImageProcessor
+import shutil
+import os
+from app.core.config import settings
+
+router = APIRouter()
+
+@router.post("/upload-resume")
+async def upload_resume(file: UploadFile = File(...)):
+    # 임시 파일 경로
+    temp_dir = os.path.join(settings.DATA_DIR, "temp")
+    os.makedirs(temp_dir, exist_ok=True)
+    temp_path = os.path.join(temp_dir, file.filename)
+    
+    try:
+        # 1. 파일 임시 저장
+        with open(temp_path, "wb") as buffer:
+            shutil.copyfileobj(file.file, buffer)
+        
+        # 2. PDF 파싱 및 정보 추출 로직 (기존 코드)
+        # ... (Docling 또는 다른 파서 호출)
+        
+        # 3. [신규] 프로필 이미지 추출
+        profile_image_url = ImageProcessor.extract_from_pdf(temp_path)
+        
+        # 이미지가 없으면 기본값 (프론트엔드에서 처리하거나 여기서 기본 URL 제공)
+        if not profile_image_url:
+            profile_image_url = f"{settings.STATIC_URL}/default_profile.png"
+            
+        return {
+            "status": "success",
+            "data": {
+                "image": profile_image_url,
+                "filename": file.filename
+                # ... 기타 파싱 데이터
+            }
+        }
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    finally:
+        # (선택) 임시 파일 삭제
+        if os.path.exists(temp_path):
+            os.remove(temp_path)
+
+4. 메인 앱 설정 (main.py) (가장 중요 ⭐)
+
+이미지를 저장만 하고 URL을 열어주지 않으면 프론트엔드에서 엑박이 뜹니다. 반드시 StaticFiles를 마운트해야 합니다.
+Python
+
+from fastapi import FastAPI
+from fastapi.staticfiles import StaticFiles
+from app.core.config import settings
+import os
+
+app = FastAPI()
+
+# ... (기존 설정들)
+
+# [필수] 정적 파일 마운트
+# URL '/static'으로 요청이 오면 -> 실제 서버의 'data' 폴더를 보여줘라
+# 예: http://localhost:8000/static/uploads/profiles/abc.jpg -> /app/data/uploads/profiles/abc.jpg
+os.makedirs(settings.DATA_DIR, exist_ok=True) # 폴더 없으면 에러나므로 생성
+app.mount(settings.STATIC_URL, StaticFiles(directory=settings.DATA_DIR), name="static")
+
+# 라우터 등록
+from app.modules.user.routers import profile
+app.include_router(profile.router, prefix="/api/user", tags=["User"])
+
+✅ 체크리스트
+
+    라이브러리 설치: Dockerfile에 아래 패키지가 포함되어 있나요?
+
+        pymupdf (fitz용)
+
+        pillow (이미지 처리용)
+
+        (제공해드린 Dockerfile에는 이미 포함되어 있습니다.)
+
+    도커 볼륨: docker-compose.yml에서 data 폴더가 영구 저장되도록 볼륨 설정이 되어 있나요?
+    YAML
+
+    volumes:
+      - ./data:/app/data  # 호스트의 data 폴더와 컨테이너 내부 data 연결

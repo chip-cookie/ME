@@ -1,0 +1,166 @@
+/* @import "tailwindcss/base"; */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ===== 커스텀 스타일 ===== */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #fffbf7;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+}
+
+.scrollbar-pastel::-webkit-scrollbar {
+  width: 6px;
+}
+
+.scrollbar-pastel::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.scrollbar-pastel::-webkit-scrollbar-thumb {
+  background-color: #FDA4AF;
+  border-radius: 10px;
+}
+
+.scrollbar-pastel::-webkit-scrollbar-thumb:hover {
+  background-color: #FB7185;
+}
+
+.draw-border {
+  position: relative;
+}
+
+.draw-border::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  width: 0%;
+  height: 3px;
+  background: linear-gradient(90deg, #93C5FD, #A7F3D0);
+  animation: drawLine 1.5s ease-out forwards;
+}
+
+@keyframes drawLine {
+  to {
+    width: 100%;
+  }
+}
+
+.fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+@keyframes fadeInUp {
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bg-grid-pattern {
+  background-image: linear-gradient(to right, #f1f5f9 1px, transparent 1px), linear-gradient(to bottom, #f1f5f9 1px, transparent 1px);
+  background-size: 40px 40px;
+}
+
+/* ===== 인쇄 최적화 CSS ===== */
+@media print {
+  @page {
+    margin: 1cm;
+    size: A4 portrait;
+  }
+
+  body {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    background-color: #ffffff !important;
+  }
+
+  html {
+    font-size: 11pt;
+  }
+
+  h1,
+  h2,
+  h3 {
+    color: #000000 !important;
+    page-break-after: avoid;
+  }
+
+  p {
+    color: #1f2937;
+    line-height: 1.6;
+  }
+
+  nav,
+  .sticky,
+  button,
+  .no-print,
+  .bg-grid-pattern {
+    display: none !important;
+  }
+
+  * {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
+  /* Guide-specific additions */
+  .project-card,
+  section,
+  .code-block,
+  .fade-in-up,
+  aside {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    margin-bottom: 1cm;
+    border: 1px solid #e5e7eb;
+    /* Add border for print visibility as suggested */
+  }
+
+  aside {
+    width: 100% !important;
+    height: auto !important;
+    position: relative !important;
+    border: none !important;
+  }
+
+  main {
+    width: 100% !important;
+  }
+
+  a[href]::after {
+    content: " (" attr(href) ")";
+    font-size: 0.8em;
+    color: #6b7280;
+  }
+
+  a[href^="#"]::after {
+    content: "";
+  }
+
+  .fade-in-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .draw-border::after {
+    animation: none !important;
+    width: 100% !important;
+  }
+}
