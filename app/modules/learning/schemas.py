@@ -15,3 +15,8 @@ class ImageLearningResponse(BaseModel):
     extracted_features: dict
     status: str
     message: str
+
+
+class AutoIngestRequest(BaseModel):
+    style_name: str
+    criteria: str

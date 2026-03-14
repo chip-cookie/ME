@@ -33,8 +33,6 @@ class WritingService:
             style_prompt = self.style_service.build_style_prompt(style_id)
             style = self.style_service.get_style_by_id(style_id)
             style_name = style.name if style else None
-        
-            style_name = style.name if style else None
             
         success_insights = self._get_success_insights()
         
