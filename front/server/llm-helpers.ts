@@ -1,10 +1,22 @@
-import { invokeLLM, invokeVLLM, Message } from "./_core/llm";
+import { invokeLLM, invokeVLLM, invokeOpenRouter, Message, InvokeParams } from "./_core/llm";
+
+/** OpenRouter key/model이 있으면 OpenRouter를, 없으면 기본 LLM을 호출합니다 */
+async function callLLM(
+  params: InvokeParams,
+  openRouterApiKey?: string | null,
+  openRouterModel?: string | null
+) {
+  if (openRouterApiKey) {
+    return invokeOpenRouter(params, openRouterApiKey, openRouterModel ?? "anthropic/claude-3.5-haiku");
+  }
+  return invokeLLM(params);
+}
 
 /**
  * Analyze writing style from cover letter text
  * Uses vLLM (local) as primary, Gemini as fallback
  */
-export async function analyzeWritingStyle(text: string) {
+export async function analyzeWritingStyle(text: string, openRouterApiKey?: string | null, openRouterModel?: string | null) {
     const messages: Message[] = [
         {
             role: "system",
@@ -38,8 +50,8 @@ export async function analyzeWritingStyle(text: string) {
     //     console.log("[analyzeWritingStyle] vLLM failed, falling back to Gemini...");
     // }
 
-    // Direct Gemini call
-    const result = await invokeLLM({
+    // Direct call (OpenRouter 우선, 없으면 기본 LLM)
+    const result = await callLLM({
         messages,
         outputSchema: {
             name: "writing_style_analysis",
@@ -56,7 +68,7 @@ export async function analyzeWritingStyle(text: string) {
                 required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
             }
         }
-    });
+    }, openRouterApiKey, openRouterModel);
     return JSON.parse(result.choices[0].message.content as string);
 }
 
@@ -64,7 +76,12 @@ export async function analyzeWritingStyle(text: string) {
  * Analyze experience text and extract STAR-format insights
  * Returns: situation, action, result, achievement, lesson, core_value
  */
-export async function analyzeExperience(text: string, analysisType: 'competency' | 'value' | 'pdf' | 'cover_letter' = 'competency') {
+export async function analyzeExperience(
+    text: string,
+    analysisType: 'competency' | 'value' | 'pdf' | 'cover_letter' = 'competency',
+    openRouterApiKey?: string | null,
+    openRouterModel?: string | null
+) {
     const typePrompts: Record<string, string> = {
         competency: '역량 중심으로 분석하세요. 어떤 역량을 발휘했는지 강조하세요.',
         value: '가치관 중심으로 분석하세요. 어떤 가치관이 드러나는지 강조하세요.',
@@ -96,7 +113,7 @@ ${typePrompts[analysisType]}
         }
     ];
 
-    const result = await invokeLLM({
+    const result = await callLLM({
         messages,
         outputSchema: {
             name: "experience_analysis",
@@ -115,7 +132,7 @@ ${typePrompts[analysisType]}
                 required: ["situation", "action", "result", "achievement", "lesson", "core_value", "category", "summary"]
             }
         }
-    });
+    }, openRouterApiKey, openRouterModel);
     return JSON.parse(result.choices[0].message.content as string);
 }
 
@@ -123,7 +140,7 @@ ${typePrompts[analysisType]}
  * Analyze interview answer style (separate DB)
  * Uses vLLM (local) as primary, Gemini as fallback
  */
-export async function analyzeInterviewStyle(text: string) {
+export async function analyzeInterviewStyle(text: string, openRouterApiKey?: string | null, openRouterModel?: string | null) {
     const messages: Message[] = [
         {
             role: "system",
@@ -153,9 +170,8 @@ export async function analyzeInterviewStyle(text: string) {
         const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
         return JSON.parse(jsonStr);
     } catch (vllmError) {
-        console.log("[analyzeInterviewStyle] vLLM failed, falling back to Gemini...");
-        // Fallback to Gemini with structured output
-        const result = await invokeLLM({
+        console.log("[analyzeInterviewStyle] vLLM failed, falling back to LLM...");
+        const result = await callLLM({
             messages,
             outputSchema: {
                 name: "interview_style_analysis",
@@ -171,7 +187,7 @@ export async function analyzeInterviewStyle(text: string) {
                     required: ["suggested_name", "answer_structure", "communication_style", "emphasis_points", "key_phrases"]
                 }
             }
-        });
+        }, openRouterApiKey, openRouterModel);
         return JSON.parse(result.choices[0].message.content as string);
     }
 }
@@ -240,14 +256,16 @@ function extractTopKChunks(trainingText: string, prompt: string, k: number = 3):
 export async function generateCoverLetter(params: {
     prompt: string;
     style: any;
-    trainingText?: string; // Add training text parameter
+    trainingText?: string;
     itemType?: string;
     targetCharCount?: number;
     jdKeywords?: string[];
     jdSummary?: string;
-    experienceContext?: any; // STAR summary
-    corporateContext?: any; // Corporate Analysis
-    collectivePatterns?: any; // Admin's aggregated writing patterns (format/structure only)
+    experienceContext?: any;
+    corporateContext?: any;
+    collectivePatterns?: any;
+    openRouterApiKey?: string | null;
+    openRouterModel?: string | null;
 }) {
     let systemPrompt = "당신은 자기소개서 작성 전문가입니다.";
 
@@ -362,7 +380,7 @@ export async function generateCoverLetter(params: {
         { role: "user", content: userPrompt }
     ];
 
-    const result = await invokeLLM({ messages });
+    const result = await callLLM({ messages }, params.openRouterApiKey, params.openRouterModel);
     let generatedText = result.choices[0].message.content as string;
 
     // Verify character count and adjust if necessary
@@ -380,7 +398,7 @@ export async function generateCoverLetter(params: {
                 }
             ];
 
-            const adjustedResult = await invokeLLM({ messages: adjustMessages });
+            const adjustedResult = await callLLM({ messages: adjustMessages }, params.openRouterApiKey, params.openRouterModel);
             generatedText = adjustedResult.choices[0].message.content as string;
         }
     }
@@ -404,7 +422,9 @@ export async function generateInterviewQuestionsWithConsulting(params: {
     coverLetterText: string;
     interviewStyle: any;
     questionCount: number;
-    corporateContext?: any; // Corporate Analysis
+    corporateContext?: any;
+    openRouterApiKey?: string | null;
+    openRouterModel?: string | null;
 }) {
     let systemPrompt = "당신은 면접 전문 컨설턴트입니다. 자기소개서를 분석하여 면접 질문을 생성하고, 각 질문에 대한 모범 답변과 답변 전략을 제공하세요.";
 
@@ -431,7 +451,7 @@ export async function generateInterviewQuestionsWithConsulting(params: {
         }
     ];
 
-    const result = await invokeLLM({
+    const result = await callLLM({
         messages,
         outputSchema: {
             name: "interview_questions_consulting",
@@ -456,18 +476,16 @@ export async function generateInterviewQuestionsWithConsulting(params: {
                 required: ["questions"]
             }
         }
-    });
+    }, params.openRouterApiKey, params.openRouterModel);
 
     const parsed = JSON.parse(result.choices[0].message.content as string);
     return parsed.questions;
 }
 
-
-
 /**
  * Analyze company based on name, url, and scraped text
  */
-export async function analyzeCompany(name: string, url: string, text: string, dartInfo?: any, npsInfo?: any) {
+export async function analyzeCompany(name: string, url: string, text: string, dartInfo?: any, npsInfo?: any, openRouterApiKey?: string | null, openRouterModel?: string | null) {
     let systemPrompt = `당신은 기업 분석 및 채용 전략 전문가입니다.
 제공된 기업 홈페이지/뉴스 텍스트를 바탕으로 기업을 분석하여, 구직자에게 도움이 되는 핵심 정보를 JSON 형식으로 제공합니다.
 
@@ -528,7 +546,7 @@ export async function analyzeCompany(name: string, url: string, text: string, da
         }
     ];
 
-    const result = await invokeLLM({ messages });
+    const result = await callLLM({ messages }, openRouterApiKey, openRouterModel);
     const responseText = result.choices[0].message.content as string;
 
     // Robust JSON extraction - handle markdown code blocks and raw JSON

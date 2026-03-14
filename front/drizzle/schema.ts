@@ -20,6 +20,10 @@ export const users = pgTable("users", {
     email: varchar("email", { length: 320 }),
     loginMethod: varchar("loginMethod", { length: 64 }),
     role: text("role").$type<"user" | "admin">().default("user").notNull(), // Use text for simplicity in Postgres
+    /** 사용자가 연동한 OpenRouter API 키 (개인 LLM 사용을 위해) */
+    openRouterApiKey: text("openRouterApiKey"),
+    /** 사용자가 선택한 OpenRouter 모델 (기본값: anthropic/claude-3.5-haiku) */
+    openRouterModel: varchar("openRouterModel", { length: 128 }),
     createdAt: timestamp("createdAt").defaultNow().notNull(),
     updatedAt: timestamp("updatedAt").defaultNow().notNull(),
     lastSignedIn: timestamp("lastSignedIn").defaultNow().notNull(),

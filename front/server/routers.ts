@@ -14,6 +14,8 @@ import {
   createLeadInquiry,
   getLeadInquiries,
   updateLeadInquiryStatus,
+  updateUserOpenRouterSettings,
+  getUserOpenRouterSettings,
 } from "./db";
 import { getAllPosts, getPostBySlug, getFeaturedPosts } from "./content";
 import { registerUser, loginUser } from "./auth";
@@ -67,6 +69,42 @@ export const appRouter = router({
           maxAge: ONE_YEAR_MS,
         });
         return { success: true, user: result.user };
+      }),
+  }),
+
+  // User settings (OpenRouter API 연동 등)
+  user: router({
+    /** 현재 로그인된 사용자의 설정 조회 (API 키는 마스킹) */
+    getSettings: publicProcedure.query(async ({ ctx }) => {
+      const userId = ctx.user?.id;
+      if (!userId) return { hasKey: false, maskedKey: null, openRouterModel: "anthropic/claude-3.5-haiku" };
+      const settings = await getUserOpenRouterSettings(userId);
+      return settings ?? { hasKey: false, maskedKey: null, openRouterModel: "anthropic/claude-3.5-haiku" };
+    }),
+
+    /** OpenRouter API 키 및 모델 저장 */
+    saveOpenRouterKey: publicProcedure
+      .input(z.object({
+        apiKey: z.string().min(10, "API 키가 너무 짧습니다"),
+        model: z.string().default("anthropic/claude-3.5-haiku"),
+      }))
+      .mutation(async ({ input, ctx }) => {
+        const userId = ctx.user?.id;
+        if (!userId) throw new Error("로그인이 필요합니다");
+        await updateUserOpenRouterSettings(userId, {
+          openRouterApiKey: input.apiKey,
+          openRouterModel: input.model,
+        });
+        return { success: true };
+      }),
+
+    /** OpenRouter API 키 삭제 */
+    deleteOpenRouterKey: publicProcedure
+      .mutation(async ({ ctx }) => {
+        const userId = ctx.user?.id;
+        if (!userId) throw new Error("로그인이 필요합니다");
+        await updateUserOpenRouterSettings(userId, { openRouterApiKey: null });
+        return { success: true };
       }),
   }),
 
@@ -196,9 +234,10 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { createWritingStyleProfile } = await import("./db");
         const { analyzeWritingStyle } = await import("./llm-helpers");
+        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
 
         // Analyze style using LLM
-        const characteristics = await analyzeWritingStyle(input.trainingText);
+        const characteristics = await analyzeWritingStyle(input.trainingText, orSettings?._rawKey, orSettings?.openRouterModel);
         const userId = ctx.user?.id || 0;
 
         const result = await createWritingStyleProfile({
@@ -282,9 +321,10 @@ export const appRouter = router({
       .input(z.object({
         text: z.string().min(10),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { analyzeWritingStyle } = await import("./llm-helpers");
-        const characteristics = await analyzeWritingStyle(input.text);
+        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const characteristics = await analyzeWritingStyle(input.text, orSettings?._rawKey, orSettings?.openRouterModel);
         return characteristics;
       }),
   }),
@@ -306,9 +346,10 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { createInterviewStyleProfile } = await import("./db");
         const { analyzeInterviewStyle } = await import("./llm-helpers");
+        const orSettingsIntv = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
 
         // Analyze interview style using LLM
-        const characteristics = await analyzeInterviewStyle(input.trainingText);
+        const characteristics = await analyzeInterviewStyle(input.trainingText, orSettingsIntv?._rawKey, orSettingsIntv?.openRouterModel);
         const userId = ctx.user?.id || 0;
 
         const result = await createInterviewStyleProfile({
@@ -334,9 +375,10 @@ export const appRouter = router({
       .input(z.object({
         text: z.string().min(10),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { analyzeInterviewStyle } = await import("./llm-helpers");
-        const characteristics = await analyzeInterviewStyle(input.text);
+        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const characteristics = await analyzeInterviewStyle(input.text, orSettings?._rawKey, orSettings?.openRouterModel);
         return characteristics;
       }),
   }),
@@ -410,6 +452,9 @@ export const appRouter = router({
           // Silently continue without collective patterns
         }
 
+        // 사용자 OpenRouter 설정 조회
+        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+
         // Generate cover letter with character count constraint and RAG
         const result = await generateCoverLetter({
           prompt: input.prompt,
@@ -419,9 +464,11 @@ export const appRouter = router({
           targetCharCount: input.targetCharCount,
           jdKeywords: input.context?.jd_keywords,
           jdSummary: input.context?.jd_summary,
-          experienceContext, // Pass STAR summary
-          corporateContext, // Pass Corporate Analysis
-          collectivePatterns, // Pass admin's aggregated patterns (format/structure only)
+          experienceContext,
+          corporateContext,
+          collectivePatterns,
+          openRouterApiKey: orSettings?._rawKey,
+          openRouterModel: orSettings?.openRouterModel,
         });
 
         // Calculate actual character count (excluding spaces)
@@ -513,12 +560,17 @@ export const appRouter = router({
           }
         }
 
+        // 사용자 OpenRouter 설정 조회
+        const orSettingsInterview = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+
         // Generate interview questions with consulting
         const questions = await generateInterviewQuestionsWithConsulting({
           coverLetterText: text,
           interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
           questionCount: input.questionCount,
           corporateContext,
+          openRouterApiKey: orSettingsInterview?._rawKey,
+          openRouterModel: orSettingsInterview?.openRouterModel,
         });
 
         const userId = ctx.user?.id || 0;
@@ -560,9 +612,10 @@ export const appRouter = router({
       .input(z.object({
         text: z.string().min(10),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { analyzeExperience } = await import("./llm-helpers");
-        const analysis = await analyzeExperience(input.text);
+        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const analysis = await analyzeExperience(input.text, 'competency', orSettings?._rawKey, orSettings?.openRouterModel);
         return analysis;
       }),
 
@@ -635,8 +688,11 @@ export const appRouter = router({
           console.error("NPS fetch failed:", e);
         }
 
+        // 사용자 OpenRouter 설정 조회
+        const orSettingsCorp = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+
         // Analyze with LLM (using DART + NPS context)
-        const llmAnalysis = await analyzeCompany(input.companyName, input.websiteUrl || "", text, dartInfo, npsInfo);
+        const llmAnalysis = await analyzeCompany(input.companyName, input.websiteUrl || "", text, dartInfo, npsInfo, orSettingsCorp?._rawKey, orSettingsCorp?.openRouterModel);
 
         // Return enriched result with all API data for frontend to save
         return {
@@ -705,9 +761,10 @@ export const appRouter = router({
         const { createExperience } = await import("./db");
         const { analyzeExperience } = await import("./llm-helpers");
         const userId = ctx.user?.id || 0;
+        const orSettingsExp = userId ? await getUserOpenRouterSettings(userId) : null;
 
         // Analyze experience with LLM
-        const analysis = await analyzeExperience(input.content, input.analysisType || 'competency');
+        const analysis = await analyzeExperience(input.content, input.analysisType || 'competency', orSettingsExp?._rawKey, orSettingsExp?.openRouterModel);
 
         await createExperience({
           userId,
@@ -748,14 +805,15 @@ export const appRouter = router({
         id: z.number(),
         analysisType: z.enum(['competency', 'value', 'pdf', 'cover_letter']),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { getExperienceById, updateExperience } = await import("./db");
         const { analyzeExperience } = await import("./llm-helpers");
+        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
 
         const exp = await getExperienceById(input.id);
         if (!exp) throw new Error("Experience not found");
 
-        const analysis = await analyzeExperience(exp.content, input.analysisType);
+        const analysis = await analyzeExperience(exp.content, input.analysisType, orSettings?._rawKey, orSettings?.openRouterModel);
         await updateExperience(input.id, { analysis, analysisType: input.analysisType });
 
         return { success: true, analysis };
