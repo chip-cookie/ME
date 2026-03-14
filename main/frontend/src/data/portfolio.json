@@ -1,0 +1,110 @@
+{
+    "parsing_type": "RAW_MARKDOWN_ONLY",
+    "raw_markdown": "## 페이지 1\n\n석상훈\n신입...",
+    "profile": {
+        "name": "석상훈",
+        "title": "신입 개발자",
+        "bio": "데이터를 활용하여 운영 효율성을 이끌어내는 인재. CAD, Python, solidworks 등의 기술을 보유하고 있습니다.",
+        "email": "ybw6677@naver.com",
+        "phone": "010-8372-2115",
+        "website": "github.com/석상훈",
+        "image": "/images/default_profile.png"
+    },
+    "projects": [
+        {
+            "id": "proj_01",
+            "title": "실무 데이터 기반 자동화 보고서 생성",
+            "description": "복잡한 산업 데이터를 정제하고 변환하여 자동화된 보고서를 생성하는 시스템 개발.",
+            "tags": [
+                {
+                    "name": "Python"
+                },
+                {
+                    "name": "Automation"
+                },
+                {
+                    "name": "Data Analysis"
+                }
+            ],
+            "link": "#",
+            "date": "2023.01 - 2023.02"
+        },
+        {
+            "id": "proj_02",
+            "title": "HDC Labs 스마트 IoT 분석 및 서비스 개발",
+            "description": "스마트홈 기술 노하우를 바탕으로 IoT 데이터 분석 및 서비스 개발 프로젝트 참여.",
+            "tags": [
+                {
+                    "name": "IoT"
+                },
+                {
+                    "name": "Data Augmentation"
+                },
+                {
+                    "name": "AI"
+                }
+            ],
+            "link": "#",
+            "date": "2025.08 - 2026.03"
+        }
+    ],
+    "skills": [
+        {
+            "title": "Languages & Tools",
+            "items": [
+                {
+                    "name": "Python",
+                    "level": "Advanced"
+                },
+                {
+                    "name": "PyTorch",
+                    "level": "Intermediate"
+                },
+                {
+                    "name": "Git",
+                    "level": "Intermediate"
+                },
+                {
+                    "name": "CAD",
+                    "level": "Advanced"
+                },
+                {
+                    "name": "SolidWorks",
+                    "level": "Advanced"
+                }
+            ]
+        }
+    ],
+    "experience": [
+        {
+            "id": "exp_01",
+            "company": "제조 인턴",
+            "role": "인턴 (패킹/포장)",
+            "period": "2023.01 - 2023.02",
+            "description": "제품 포장 및 검수 작업 수행. 불량 발생 시 초기 대응 프로세스 적용 및 매뉴얼에 따른 문제 해결."
+        }
+    ],
+    "education": [
+        {
+            "id": "edu_01",
+            "institution": "경운대학교",
+            "degree": "에너지소재공학과",
+            "period": "2018.03 - 2024.02",
+            "status": "졸업"
+        },
+        {
+            "id": "edu_02",
+            "institution": "대전고등학교",
+            "degree": "문과계열",
+            "period": "2015.03 - 2018.02",
+            "status": "졸업"
+        }
+    ],
+    "awards": [
+        {
+            "title": "SolidWorks 자격증",
+            "date": "2023.11",
+            "type": "Certificate"
+        }
+    ]
+}

@@ -1,0 +1,102 @@
+{
+    "profile": {
+        "name": "석상훈",
+        "title": "AI Engineer (신입)",
+        "bio": "다양한 기술(최적화, CAD, 운전, 제조, Git, Python, PyTorch)과 실무 경험을 바탕으로 AI 혁신을 선도하며 기업의 가치를 높이는 인재가 되고자 합니다. HDC Labs 교육을 통해 생성형 AI 및 데이터 분석 실무 능력을 집중적으로 훈련했으며, 공학적 사고와 데이터 기반 운영 효율화 역량을 겸비했습니다.",
+        "email": "ybw6677@naver.com"
+    },
+    "projects": [
+        {
+            "id": "project-1",
+            "title": "HDC Labs 생성형 AI 활용 스마트 IoT 분석 및 서비스 개발 부트캠프 (NOVA 1기)",
+            "description": "HDC Labs의 스마트홈 기술 노하우를 바탕으로 실제 데이터를 활용한 교육 과정. 생성형 AI를 활용한 데이터 증강 및 변환, 실무 데이터 기반 자동화 보고서 생성 프로젝트 수행을 통해 심층 학습 기초 역량부터 실전 프로젝트까지 체계적으로 학습하였습니다.",
+            "tags": [
+                {
+                    "name": "Generated AI"
+                },
+                {
+                    "name": "Data Augmentation"
+                },
+                {
+                    "name": "IoT"
+                },
+                {
+                    "name": "Automated Reporting"
+                },
+                {
+                    "name": "Git"
+                },
+                {
+                    "name": "Docker"
+                },
+                {
+                    "name": "Python"
+                }
+            ],
+            "link": "#"
+        },
+        {
+            "id": "project-2",
+            "title": "경운대학교 응용 SW 엔지니어링 프로그램 (사단법인한국산업기술협회 연관)",
+            "description": "6개월간 진행된 현업자에게 배우는 교내 응용SW엔지니어링 프로그램(학교와 컨소시엄훈련과정)입니다. SolidWorks, 3D프린팅, autoCAD 등 다양한 툴을 사용하여 현업에서 사용되는 유사한 난이도의 설계도를 활용하여 실습했습니다. 실무에서 빠르게 적응하고 적용할 수 있는 역량을 갖추었으며 SolidWorks 자격증을 취득했습니다.",
+            "tags": [
+                {
+                    "name": "SolidWorks"
+                },
+                {
+                    "name": "3D Printing"
+                },
+                {
+                    "name": "AutoCAD"
+                },
+                {
+                    "name": "SW Engineering"
+                },
+                {
+                    "name": "CAD"
+                }
+            ],
+            "link": "#"
+        },
+        {
+            "id": "project-3",
+            "title": "케이엠텍 제조 인턴/수습 경험",
+            "description": "제품 포장 및 검수 작업을 수행하며 품질 기준 준수의 중요성을 체득했습니다. 예상치 못한 불량 발생 시, 사전에 학습한 초기 대응 프로세스 매뉴얼을 적용하여 신속하게 문제를 조치하고 보고하는 체계적인 문제 해결 경험을 쌓았습니다. 현장 품질 관리에서 필요한 신속한 판단력과 대응 능력을 실무를 통해 경험했습니다.",
+            "tags": [
+                {
+                    "name": "Manufacturing"
+                },
+                {
+                    "name": "Quality Control"
+                },
+                {
+                    "name": "Process Management"
+                },
+                {
+                    "name": "Initial Response"
+                }
+            ],
+            "link": "#"
+        },
+        {
+            "id": "project-4",
+            "title": "데이터 기반 근무 체계 개선 (군 복무 사례)",
+            "description": "군 복무 당시, 특정 인원에게 업무가 과도하게 집중되는 비효율을 해결하기 위해 부서 유형별 근무 시간을 엑셀로 시각화하여 편차를 객관적인 수치로 정리했습니다. 이 데이터를 기반으로 상급자 간담회를 요청하여 모두가 이해할 수 있는 공정한 기준 개선을 성공적으로 이끌어냈습니다. 데이터를 근거로 대안을 제시하는 능력을 입증했습니다.",
+            "tags": [
+                {
+                    "name": "Data Visualization"
+                },
+                {
+                    "name": "Process Optimization"
+                },
+                {
+                    "name": "Excel"
+                },
+                {
+                    "name": "Conflict Resolution"
+                }
+            ],
+            "link": "#"
+        }
+    ]
+}
