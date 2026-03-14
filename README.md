@@ -114,6 +114,112 @@ flowchart TB
     Endpoints <--> SQLite
 ```
 
+### 데이터베이스 ERD
+
+```mermaid
+erDiagram
+    style_profiles {
+        int id PK
+        string name UK
+        string description
+        json tone_patterns
+        json structure_rules
+        json expression_dict
+        json good_examples
+        json bad_examples
+        float confidence_score
+        int sample_count
+        datetime created_at
+        datetime updated_at
+    }
+
+    explicit_rules {
+        int id PK
+        int style_id FK
+        string rule_type
+        text description
+        text example_text
+        bool is_active
+        int priority
+        string detected_from
+        datetime created_at
+    }
+
+    writing_sessions {
+        int id PK
+        int style_id FK
+        string context_type
+        text initial_prompt
+        text final_output
+        int revision_count
+        datetime started_at
+        datetime completed_at
+    }
+
+    version_histories {
+        int id PK
+        int session_id FK
+        int version_num
+        text content
+        text diff_from_prev
+        string edit_type
+        datetime created_at
+    }
+
+    change_logs {
+        int id PK
+        int version_id FK
+        string change_type
+        text original_text
+        text changed_text
+        string reason_category
+    }
+
+    analysis_sessions {
+        int id PK
+        string file_name
+        string file_type
+        string file_path
+        text raw_text
+        json analysis_result
+        json financial_data
+        json chat_history
+        datetime created_at
+    }
+
+    learning_logs {
+        int id PK
+        datetime learned_at
+        int samples_count
+        json metrics
+        string model_checkpoint
+    }
+
+    style_updates {
+        int id PK
+        int log_id FK
+        int style_id FK
+        json before_params
+        json after_params
+        float improvement_score
+    }
+
+    successful_examples {
+        int id PK
+        text content
+        json analysis
+        string category
+        datetime created_at
+    }
+
+    style_profiles ||--o{ explicit_rules : "has"
+    style_profiles ||--o{ writing_sessions : "used in"
+    style_profiles ||--o{ style_updates : "updated by"
+    writing_sessions ||--o{ version_histories : "has"
+    version_histories ||--o{ change_logs : "records"
+    learning_logs ||--o{ style_updates : "contains"
+```
+
 ### 기술 스택
 
 | 영역 | 기술 |
@@ -212,6 +318,85 @@ graph TD
 
     Drive -->|자동 감지| Watcher[watch_and_deploy.py]
     Watcher -->|docker compose restart| vLLM[vLLM - GTX 1660S]
+```
+
+### 데이터베이스 ERD
+
+```mermaid
+erDiagram
+    documents {
+        uuid id PK
+        enum doc_type "자기소개서 경력기술서 지원서"
+        enum org_type "PUBLIC PRIVATE"
+        string company_name
+        enum result_label "PASS FAIL"
+        text parsed_markdown
+        jsonb structured_json
+        string embedding_id
+        datetime created_at
+    }
+
+    evaluation_rubrics {
+        uuid id PK
+        string rubric_name UK
+        enum org_type
+        string dimension
+        text score_1_desc
+        text score_5_desc
+        float weight
+    }
+
+    gleaning_sessions {
+        uuid id PK
+        uuid document_id FK
+        float initial_score
+        float final_score
+        int total_iterations
+        enum status "RUNNING PASSED MAX_ITER"
+        jsonb rewrite_log
+        datetime created_at
+    }
+
+    evaluation_results {
+        uuid id PK
+        uuid document_id FK
+        uuid rubric_id FK
+        uuid gleaning_session_id FK
+        int iteration_num
+        jsonb dimension_scores
+        float total_score
+        bool pass_fail
+        jsonb feedback_json
+        datetime created_at
+    }
+
+    training_datasets {
+        uuid id PK
+        enum dataset_type "SFT DPO"
+        uuid source_doc_id FK
+        text prompt
+        text chosen
+        text rejected
+        float reward_score
+        datetime created_at
+    }
+
+    doc_style_patterns {
+        uuid id PK
+        enum org_type
+        jsonb section_structure
+        jsonb writing_rules
+        jsonb keyword_patterns
+        jsonb tone_profile
+        float pass_rate
+        datetime updated_at
+    }
+
+    documents ||--o{ gleaning_sessions : "has"
+    documents ||--o{ evaluation_results : "receives"
+    documents ||--o{ training_datasets : "generates"
+    gleaning_sessions ||--o{ evaluation_results : "logs"
+    evaluation_rubrics ||--o{ evaluation_results : "defines"
 ```
 
 ### 환경 구성
