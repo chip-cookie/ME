@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # 1. 작업자 (OCR + 임베딩 + 로직 수행)
+  parser-worker:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    image: pp_worker:pp_final_v1
+    container_name: esg_worker
+    volumes:
+      - ..:/app
+      - ../data:/app/data
+      - ../backend:/app/backend
+    environment:
+      - CHROMA_HOST=vector-db
+      - CHROMA_PORT=8000
+      - VLLM_API_URL=http://inference-server:8000/v1
+      - VLLM_MODEL_NAME=hf.co/bartowski/google_gemma-3-4b-it-GGUF
+      - FLAGS_use_mkldnn=0
+      - FLAGS_enable_mkldnn=0
+    env_file:
+      - ../.env
+    depends_on:
+      - inference-server
+      - vector-db
+    command: tail -f /dev/null
+
+  # 2. API 서버 (검색/채팅 백엔드)
+  portfolio-api:
+    image: pp_worker:pp_final_v1
+    container_name: esg_api
+    volumes:
+      - ..:/app
+      - ../data:/app/data
+      - ../data/models:/root/.cache/huggingface
+      - ../backend:/app/backend
+    ports:
+      - "8002:8002"
+    environment:
+      - CHROMA_HOST=vector-db
+      - CHROMA_PORT=8000
+      - VLLM_API_URL=http://inference-server:8000/v1
+      - VLLM_MODEL_NAME=hf.co/bartowski/google_gemma-3-4b-it-GGUF
+      - FLAGS_use_mkldnn=0
+      - FLAGS_enable_mkldnn=0
+    depends_on:
+      - vector-db
+      - inference-server
+    command: uvicorn backend.api.main:app --host 0.0.0.0 --port 8002 --reload
+
+  # 3. 두뇌 (Ollama - CPU 지원)
+  inference-server:
+    image: ollama/ollama:latest
+    container_name: vllm_gemma
+    volumes:
+      - ../data/ollama:/root/.ollama
+    ports:
+      - "8000:11434"
+
+  # 4. 저장소 (ChromaDB)
+  vector-db:
+    image: chromadb/chroma:latest
+    container_name: chroma_db
+    ports:
+      - "8001:8000"
+    volumes:
+      - ../data/chroma:/chroma/chroma

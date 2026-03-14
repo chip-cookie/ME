@@ -1,0 +1,24 @@
+{
+    "name": "portfolio-solidjs",
+    "version": "1.0.0",
+    "type": "module",
+    "description": "SolidJS + TypeScript Portfolio",
+    "scripts": {
+        "dev": "vite",
+        "build": "vite build",
+        "preview": "vite preview"
+    },
+    "dependencies": {
+        "solid-js": "^1.8.0"
+    },
+    "devDependencies": {
+        "@tailwindcss/forms": "^0.5.7",
+        "@tailwindcss/typography": "^0.5.10",
+        "autoprefixer": "^10.4.16",
+        "postcss": "^8.4.32",
+        "tailwindcss": "^3.4.0",
+        "typescript": "^5.3.3",
+        "vite": "^5.0.10",
+        "vite-plugin-solid": "^2.8.0"
+    }
+}

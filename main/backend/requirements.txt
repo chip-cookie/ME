@@ -1,0 +1,33 @@
+rapidocr-onnxruntime
+# paddlepaddle removed due to ABI crash
+# paddleocr removed due to ABI crash
+
+# Conflicting Dependencies Resolution
+PyYAML==6.0.2         # for paddlex
+numpy # Unpinned for RapidOCR
+packaging<26.0        # for langchain-core
+pillow<12.0.0         # for docling
+
+# General Utilities
+pypdf
+python-dotenv
+opencv-python-headless
+PyMuPDF  # fitz - PDF to image conversion
+
+# Server & API
+fastapi
+uvicorn
+
+# vLLM Client (OpenAI Compatible)
+openai
+
+# Tokenizer & Embeddings
+chromadb
+sentence-transformers
+transformers
+accelerate  # for efficient model loading if needed
+kiwipiepy
+
+# Optional / Parsing Helpers
+docling
+langchain-text-splitters

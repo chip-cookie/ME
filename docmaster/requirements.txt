@@ -1,0 +1,44 @@
+# Core
+fastapi==0.115.0
+uvicorn[standard]==0.30.0
+sqlalchemy==2.0.35
+alembic==1.13.0
+psycopg2-binary==2.9.9
+redis==5.0.0
+celery==5.4.0
+
+# LLM Client (vLLM runs in Docker; this is the client only)
+openai==1.50.0
+httpx==0.27.0
+
+# Document Parsing
+pyhwp==0.1b12           # HWP (.hwp) — CLI(hwp5txt) + Python API
+docling==2.15.0         # PDF/DOCX/DOC/ODT/RTF 범용 파서 (1순위)
+python-docx==1.1.0      # DOCX 폴백 파서 (표·스타일 보존)
+pypdf==3.17.0           # PDF 폴백 파서 (최후 수단)
+pdfplumber==0.11.4      # PDF 폴백 파서 (표·컬럼 레이아웃 특화)
+chardet==5.2.0          # 한국어 파일 인코딩 자동 감지 (EUC-KR/CP949/UTF-8)
+
+# RAG & Matching
+chromadb==0.5.0
+scikit-learn==1.5.0
+gensim==4.3.3
+sentence-transformers==3.3.0
+rank-bm25==0.2.2
+
+# Evaluation
+deepeval==1.4.0
+
+# Utils
+python-dotenv==1.0.0
+pydantic==2.9.0
+pydantic-settings==2.6.0
+aiofiles==24.1.0
+
+# Training utilities (local export scripts only; actual training runs on Colab)
+datasets==3.0.0
+
+# Google Drive API (watch_and_deploy.py 자동 배포 데몬)
+google-api-python-client==2.154.0
+google-auth-httplib2==0.2.0
+google-auth-oauthlib==1.2.1

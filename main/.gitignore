@@ -1,0 +1,67 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Dependency directories
+node_modules/
+frontend/node_modules/
+jspm_packages/
+
+# Build outputs
+dist/
+frontend/dist/
+build/
+
+# Typescript
+*.tsbuildinfo
+
+# Env vars
+.env
+.env.*
+
+# Editor/IDE
+.vscode/
+.idea/
+.DS_Store
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+backend/__pycache__/
+backend/scripts/__pycache__/
+backend/api/__pycache__/
+
+# Large Archives
+*.tar
+esg_parser_full.tar
+pp_final_v1.tar
+
+# Data Directories (New Structure)
+# Ignore all data except committed sample/config data
+data/chroma/
+data/ollama/
+data/models/
+data/personal/
+data/debug/
+
+# Ignore Ollama/Chroma temp data if any
+ollama_data/
+chroma_data/
+models/
+personal_data/
+debug_output/
+
+# Temporary
+dd
+dev_notes/
+read
