@@ -1,4 +1,5 @@
 import { ENV } from "./env";
+import { DEFAULT_OPENROUTER_MODEL } from "../../shared/const";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -435,6 +436,49 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
     throw new Error(
       `LLM invoke failed: ${response.status} ${response.statusText} – ${errorText}`
     );
+  }
+
+  return (await response.json()) as InvokeResult;
+}
+
+/**
+ * 사용자의 OpenRouter API 키로 LLM을 호출합니다.
+ * OpenRouter는 OpenAI 호환 API이며 100+ 모델을 지원합니다.
+ * @see https://openrouter.ai/docs
+ */
+export async function invokeOpenRouter(
+  params: InvokeParams,
+  apiKey: string,
+  model: string = DEFAULT_OPENROUTER_MODEL
+): Promise<InvokeResult> {
+  const { messages, outputSchema, output_schema, responseFormat, response_format } = params;
+
+  const payload: Record<string, unknown> = {
+    model,
+    messages: messages.map(normalizeMessage),
+  };
+
+  const normalizedResponseFormat = normalizeResponseFormat({
+    responseFormat, response_format, outputSchema, output_schema,
+  });
+  if (normalizedResponseFormat) {
+    payload.response_format = normalizedResponseFormat;
+  }
+
+  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+      authorization: `Bearer ${apiKey}`,
+      "http-referer": "https://jasos.app",
+      "x-title": "JasoS",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`OpenRouter 호출 실패: ${response.status} – ${errorText}`);
   }
 
   return (await response.json()) as InvokeResult;

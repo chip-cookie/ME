@@ -19,6 +19,7 @@ import {
   experiences,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { DEFAULT_OPENROUTER_MODEL } from '../shared/const';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -146,6 +147,36 @@ export async function getAllUsers() {
   }
 
   return await db.select().from(users);
+}
+
+/** 사용자의 OpenRouter API 키와 선호 모델을 저장합니다 */
+export async function updateUserOpenRouterSettings(
+  userId: number,
+  settings: { openRouterApiKey?: string | null; openRouterModel?: string | null }
+) {
+  const db = await getDb();
+  if (!db) throw new Error("Database not available");
+  await db.update(users).set({
+    ...(settings.openRouterApiKey !== undefined && { openRouterApiKey: settings.openRouterApiKey }),
+    ...(settings.openRouterModel !== undefined && { openRouterModel: settings.openRouterModel }),
+  }).where(eq(users.id, userId));
+}
+
+/** 사용자의 OpenRouter 설정 반환 (API 키는 마스킹, 서버내부 rawKey 포함) */
+export async function getUserOpenRouterSettings(userId: number) {
+  const db = await getDb();
+  if (!db) return null;
+  const result = await db
+    .select({ openRouterApiKey: users.openRouterApiKey, openRouterModel: users.openRouterModel })
+    .from(users).where(eq(users.id, userId)).limit(1);
+  if (!result.length) return null;
+  const { openRouterApiKey, openRouterModel } = result[0];
+  return {
+    hasKey: !!openRouterApiKey,
+    maskedKey: openRouterApiKey ? `sk-or-...${openRouterApiKey.slice(-4)}` : null,
+    openRouterModel: openRouterModel ?? DEFAULT_OPENROUTER_MODEL,
+    _rawKey: openRouterApiKey ?? null,
+  };
 }
 
 /**
