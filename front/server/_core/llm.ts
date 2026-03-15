@@ -1,4 +1,5 @@
 import { ENV } from "./env";
+import { DEFAULT_OPENROUTER_MODEL } from "../../shared/const";
 
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
@@ -448,7 +449,7 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
 export async function invokeOpenRouter(
   params: InvokeParams,
   apiKey: string,
-  model: string = "anthropic/claude-3.5-haiku"
+  model: string = DEFAULT_OPENROUTER_MODEL
 ): Promise<InvokeResult> {
   const { messages, outputSchema, output_schema, responseFormat, response_format } = params;
 

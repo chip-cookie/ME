@@ -1,4 +1,4 @@
-import { COOKIE_NAME } from "../shared/const";
+import { COOKIE_NAME, DEFAULT_OPENROUTER_MODEL } from "../shared/const";
 import { getSessionCookieOptions } from "./_core/cookies";
 import { systemRouter } from "./_core/systemRouter";
 import { publicProcedure, router, protectedProcedure } from "./_core/trpc";
@@ -20,6 +20,11 @@ import {
 import { getAllPosts, getPostBySlug, getFeaturedPosts } from "./content";
 import { registerUser, loginUser } from "./auth";
 import { ONE_YEAR_MS } from "../shared/const";
+
+/** 현재 사용자의 OpenRouter 설정을 조회합니다 */
+async function getOrSettings(userId: number | undefined) {
+  return userId ? await getUserOpenRouterSettings(userId) : null;
+}
 
 export const appRouter = router({
   system: systemRouter,
@@ -76,22 +81,18 @@ export const appRouter = router({
   user: router({
     /** 현재 로그인된 사용자의 설정 조회 (API 키는 마스킹) */
     getSettings: publicProcedure.query(async ({ ctx }) => {
-      const userId = ctx.user?.id;
-      if (!userId) return { hasKey: false, maskedKey: null, openRouterModel: "anthropic/claude-3.5-haiku" };
-      const settings = await getUserOpenRouterSettings(userId);
-      return settings ?? { hasKey: false, maskedKey: null, openRouterModel: "anthropic/claude-3.5-haiku" };
+      const settings = await getOrSettings(ctx.user?.id);
+      return settings ?? { hasKey: false, maskedKey: null, openRouterModel: DEFAULT_OPENROUTER_MODEL };
     }),
 
     /** OpenRouter API 키 및 모델 저장 */
-    saveOpenRouterKey: publicProcedure
+    saveOpenRouterKey: protectedProcedure
       .input(z.object({
         apiKey: z.string().min(10, "API 키가 너무 짧습니다"),
-        model: z.string().default("anthropic/claude-3.5-haiku"),
+        model: z.string().default(DEFAULT_OPENROUTER_MODEL),
       }))
       .mutation(async ({ input, ctx }) => {
-        const userId = ctx.user?.id;
-        if (!userId) throw new Error("로그인이 필요합니다");
-        await updateUserOpenRouterSettings(userId, {
+        await updateUserOpenRouterSettings(ctx.user.id, {
           openRouterApiKey: input.apiKey,
           openRouterModel: input.model,
         });
@@ -99,11 +100,9 @@ export const appRouter = router({
       }),
 
     /** OpenRouter API 키 삭제 */
-    deleteOpenRouterKey: publicProcedure
+    deleteOpenRouterKey: protectedProcedure
       .mutation(async ({ ctx }) => {
-        const userId = ctx.user?.id;
-        if (!userId) throw new Error("로그인이 필요합니다");
-        await updateUserOpenRouterSettings(userId, { openRouterApiKey: null });
+        await updateUserOpenRouterSettings(ctx.user.id, { openRouterApiKey: null });
         return { success: true };
       }),
   }),
@@ -234,7 +233,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { createWritingStyleProfile } = await import("./db");
         const { analyzeWritingStyle } = await import("./llm-helpers");
-        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const orSettings = await getOrSettings(ctx.user?.id);
 
         // Analyze style using LLM
         const characteristics = await analyzeWritingStyle(input.trainingText, orSettings?._rawKey, orSettings?.openRouterModel);
@@ -323,7 +322,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { analyzeWritingStyle } = await import("./llm-helpers");
-        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const orSettings = await getOrSettings(ctx.user?.id);
         const characteristics = await analyzeWritingStyle(input.text, orSettings?._rawKey, orSettings?.openRouterModel);
         return characteristics;
       }),
@@ -346,10 +345,10 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { createInterviewStyleProfile } = await import("./db");
         const { analyzeInterviewStyle } = await import("./llm-helpers");
-        const orSettingsIntv = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const orSettings = await getOrSettings(ctx.user?.id);
 
         // Analyze interview style using LLM
-        const characteristics = await analyzeInterviewStyle(input.trainingText, orSettingsIntv?._rawKey, orSettingsIntv?.openRouterModel);
+        const characteristics = await analyzeInterviewStyle(input.trainingText, orSettings?._rawKey, orSettings?.openRouterModel);
         const userId = ctx.user?.id || 0;
 
         const result = await createInterviewStyleProfile({
@@ -377,7 +376,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { analyzeInterviewStyle } = await import("./llm-helpers");
-        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const orSettings = await getOrSettings(ctx.user?.id);
         const characteristics = await analyzeInterviewStyle(input.text, orSettings?._rawKey, orSettings?.openRouterModel);
         return characteristics;
       }),
@@ -399,49 +398,39 @@ export const appRouter = router({
         }).optional(),
       }))
       .mutation(async ({ input, ctx }) => {
-        const { getWritingStyleProfileById, createWritingHistory, getExperienceLogsByUserId } = await import("./db");
+        const {
+          getWritingStyleProfileById,
+          createWritingHistory,
+          getExperienceById,
+          getCorporateAnalysisById,
+          getWritingStyleProfilesByUserId,
+        } = await import("./db");
         const { generateCoverLetter } = await import("./llm-helpers");
+        const { getAdminUserId } = await import("./auth");
 
-        // Get style info if provided
-        let styleInfo = null;
-        if (input.styleId) {
-          styleInfo = await getWritingStyleProfileById(input.styleId);
-        }
+        const userId = ctx.user?.id || 0;
 
+        // Fetch style, experience, corporate context, and user settings in parallel
+        const [styleInfo, expRaw, corpRaw, orSettings] = await Promise.all([
+          input.styleId ? getWritingStyleProfileById(input.styleId) : Promise.resolve(null),
+          input.experienceId ? getExperienceById(input.experienceId) : Promise.resolve(null),
+          input.corporateId ? getCorporateAnalysisById(input.corporateId) : Promise.resolve(null),
+          getOrSettings(ctx.user?.id),
+        ]);
 
+        // Allow access only to user's own experience
+        const experienceContext = expRaw && expRaw.userId === userId ? expRaw.analysis : undefined;
 
-        // Get experience info if provided
-        let experienceContext = undefined;
-        if (input.experienceId) {
-          const { getExperienceById } = await import("./db");
-          const userId = ctx.user?.id || 0;
-          const exp = await getExperienceById(input.experienceId);
-
-          // Allow access if it's user's own experience
-          if (exp && exp.userId === userId) {
-            experienceContext = exp.analysis;
-          }
-        }
-
-        // Get corporate info if provided
+        // Allow access only to user's own corporate analysis
         let corporateContext = undefined;
-        if (input.corporateId) {
-          const { getCorporateAnalysisById } = await import("./db");
-          const userId = ctx.user?.id || 0;
-          const corp = await getCorporateAnalysisById(input.corporateId);
-          if (corp && corp.userId === userId) {
-            corporateContext = typeof corp.analysisResult === 'string' ? JSON.parse(corp.analysisResult) : corp.analysisResult;
-            if (corporateContext) {
-              corporateContext.companyName = corp.companyName;
-            }
-          }
+        if (corpRaw && corpRaw.userId === userId) {
+          corporateContext = typeof corpRaw.analysisResult === 'string' ? JSON.parse(corpRaw.analysisResult) : corpRaw.analysisResult;
+          if (corporateContext) corporateContext.companyName = corpRaw.companyName;
         }
 
         // Get collective patterns from admin (format/structure only, no content)
         let collectivePatterns = undefined;
         try {
-          const { getAdminUserId } = await import("./auth");
-          const { getWritingStyleProfilesByUserId } = await import("./db");
           const adminId = getAdminUserId();
           const adminStyles = await getWritingStyleProfilesByUserId(adminId);
           const collectiveStyle = adminStyles.find(s => s.name === '_collective_writing_patterns');
@@ -451,9 +440,6 @@ export const appRouter = router({
         } catch (e) {
           // Silently continue without collective patterns
         }
-
-        // 사용자 OpenRouter 설정 조회
-        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
 
         // Generate cover letter with character count constraint and RAG
         const result = await generateCoverLetter({
@@ -473,7 +459,6 @@ export const appRouter = router({
 
         // Calculate actual character count (excluding spaces)
         const actualCharCount = result.text.replace(/\s/g, '').length;
-        const userId = ctx.user?.id || 0;
 
         // Save to history
         const history = await createWritingHistory({
@@ -530,7 +515,7 @@ export const appRouter = router({
         } = await import("./db");
         const { generateInterviewQuestionsWithConsulting } = await import("./llm-helpers");
 
-        // Get cover letter text
+        // Get cover letter text (must resolve before parallel fetch)
         let text = input.coverLetterText;
         if (!text && input.writingId) {
           const history = await getWritingHistoryById(input.writingId);
@@ -541,27 +526,21 @@ export const appRouter = router({
           throw new Error("자소서 내용이 필요합니다");
         }
 
-        // Get interview style if provided
-        let interviewStyle = null;
-        if (input.interviewStyleId) {
-          interviewStyle = await getInterviewStyleProfileById(input.interviewStyleId);
-        }
+        const userId = ctx.user?.id || 0;
 
-        // Get corporate info if provided
+        // Fetch interview style, corporate context, and user settings in parallel
+        const [interviewStyle, corpRaw, orSettings] = await Promise.all([
+          input.interviewStyleId ? getInterviewStyleProfileById(input.interviewStyleId) : Promise.resolve(null),
+          input.corporateId ? getCorporateAnalysisById(input.corporateId) : Promise.resolve(null),
+          getOrSettings(ctx.user?.id),
+        ]);
+
+        // Allow access only to user's own corporate analysis
         let corporateContext = undefined;
-        if (input.corporateId) {
-          const userId = ctx.user?.id || 0;
-          const corp = await getCorporateAnalysisById(input.corporateId);
-          if (corp && corp.userId === userId) {
-            corporateContext = typeof corp.analysisResult === 'string' ? JSON.parse(corp.analysisResult) : corp.analysisResult;
-            if (corporateContext) {
-              corporateContext.companyName = corp.companyName;
-            }
-          }
+        if (corpRaw && corpRaw.userId === userId) {
+          corporateContext = typeof corpRaw.analysisResult === 'string' ? JSON.parse(corpRaw.analysisResult) : corpRaw.analysisResult;
+          if (corporateContext) corporateContext.companyName = corpRaw.companyName;
         }
-
-        // 사용자 OpenRouter 설정 조회
-        const orSettingsInterview = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
 
         // Generate interview questions with consulting
         const questions = await generateInterviewQuestionsWithConsulting({
@@ -569,8 +548,8 @@ export const appRouter = router({
           interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
           questionCount: input.questionCount,
           corporateContext,
-          openRouterApiKey: orSettingsInterview?._rawKey,
-          openRouterModel: orSettingsInterview?.openRouterModel,
+          openRouterApiKey: orSettings?._rawKey,
+          openRouterModel: orSettings?.openRouterModel,
         });
 
         const userId = ctx.user?.id || 0;
@@ -614,7 +593,7 @@ export const appRouter = router({
       }))
       .mutation(async ({ input, ctx }) => {
         const { analyzeExperience } = await import("./llm-helpers");
-        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const orSettings = await getOrSettings(ctx.user?.id);
         const analysis = await analyzeExperience(input.text, 'competency', orSettings?._rawKey, orSettings?.openRouterModel);
         return analysis;
       }),
@@ -657,42 +636,24 @@ export const appRouter = router({
         companyName: z.string().min(1),
         websiteUrl: z.string().optional(),
       }))
-      .mutation(async ({ input }) => {
+      .mutation(async ({ input, ctx }) => {
         const { crawlUrl } = await import("./tools/crawler");
         const { getDartCompanyInfo } = await import("./tools/dart");
         const { getNpsCompanyInfo } = await import("./tools/nps");
         const { analyzeCompany } = await import("./llm-helpers");
 
-        let text = "";
-        if (input.websiteUrl && input.websiteUrl.length > 5) {
-          text = await crawlUrl(input.websiteUrl);
-        }
-
-        // Fetch DART info
-        let dartInfo = null;
-        try {
-          if (input.companyName) {
-            dartInfo = await getDartCompanyInfo(input.companyName);
-          }
-        } catch (e) {
-          console.error("DART fetch failed:", e);
-        }
-
-        // Fetch NPS info
-        let npsInfo = null;
-        try {
-          if (input.companyName) {
-            npsInfo = await getNpsCompanyInfo(input.companyName);
-          }
-        } catch (e) {
-          console.error("NPS fetch failed:", e);
-        }
-
-        // 사용자 OpenRouter 설정 조회
-        const orSettingsCorp = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        // Fetch URL content, DART info, NPS info, and user settings in parallel
+        const [text, dartInfo, npsInfo, orSettings] = await Promise.all([
+          input.websiteUrl && input.websiteUrl.length > 5
+            ? crawlUrl(input.websiteUrl).catch(() => "")
+            : Promise.resolve(""),
+          getDartCompanyInfo(input.companyName).catch(e => { console.error("DART fetch failed:", e); return null; }),
+          getNpsCompanyInfo(input.companyName).catch(e => { console.error("NPS fetch failed:", e); return null; }),
+          getOrSettings(ctx.user?.id),
+        ]);
 
         // Analyze with LLM (using DART + NPS context)
-        const llmAnalysis = await analyzeCompany(input.companyName, input.websiteUrl || "", text, dartInfo, npsInfo, orSettingsCorp?._rawKey, orSettingsCorp?.openRouterModel);
+        const llmAnalysis = await analyzeCompany(input.companyName, input.websiteUrl || "", text, dartInfo, npsInfo, orSettings?._rawKey, orSettings?.openRouterModel);
 
         // Return enriched result with all API data for frontend to save
         return {
@@ -761,7 +722,7 @@ export const appRouter = router({
         const { createExperience } = await import("./db");
         const { analyzeExperience } = await import("./llm-helpers");
         const userId = ctx.user?.id || 0;
-        const orSettingsExp = userId ? await getUserOpenRouterSettings(userId) : null;
+        const orSettingsExp = await getOrSettings(userId);
 
         // Analyze experience with LLM
         const analysis = await analyzeExperience(input.content, input.analysisType || 'competency', orSettingsExp?._rawKey, orSettingsExp?.openRouterModel);
@@ -808,7 +769,7 @@ export const appRouter = router({
       .mutation(async ({ input, ctx }) => {
         const { getExperienceById, updateExperience } = await import("./db");
         const { analyzeExperience } = await import("./llm-helpers");
-        const orSettings = ctx.user?.id ? await getUserOpenRouterSettings(ctx.user.id) : null;
+        const orSettings = await getOrSettings(ctx.user?.id);
 
         const exp = await getExperienceById(input.id);
         if (!exp) throw new Error("Experience not found");

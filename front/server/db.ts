@@ -19,6 +19,7 @@ import {
   experiences,
 } from "../drizzle/schema";
 import { ENV } from './_core/env';
+import { DEFAULT_OPENROUTER_MODEL } from '../shared/const';
 
 let _db: ReturnType<typeof drizzle> | null = null;
 
@@ -173,7 +174,7 @@ export async function getUserOpenRouterSettings(userId: number) {
   return {
     hasKey: !!openRouterApiKey,
     maskedKey: openRouterApiKey ? `sk-or-...${openRouterApiKey.slice(-4)}` : null,
-    openRouterModel: openRouterModel ?? "anthropic/claude-3.5-haiku",
+    openRouterModel: openRouterModel ?? DEFAULT_OPENROUTER_MODEL,
     _rawKey: openRouterApiKey ?? null,
   };
 }
