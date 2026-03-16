@@ -14,12 +14,8 @@ from typing import Optional, Tuple, Dict, Any, List
 from pathlib import Path
 
 # Layer 1: Docling
-try:
-    from docling.document_converter import DocumentConverter
-    from docling.datamodel.base_models import InputFormat
-    DOCLING_AVAILABLE = True
-except ImportError:
-    DOCLING_AVAILABLE = False
+# Temporarily disabled due to torch DLL load error (WinError 1114)
+DOCLING_AVAILABLE = False
 
 # Layer 2: Native Parsers
 try:
@@ -126,7 +122,7 @@ class DualPathExtractor:
         self._docling_converter = None
     
     @property
-    def docling_converter(self) -> Optional[DocumentConverter]:
+    def docling_converter(self) -> Optional[Any]:
         """Lazy initialization of Docling converter."""
         if not DOCLING_AVAILABLE:
             return None

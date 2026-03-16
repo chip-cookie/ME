@@ -552,8 +552,6 @@ export const appRouter = router({
           openRouterModel: orSettings?.openRouterModel,
         });
 
-        const userId = ctx.user?.id || 0;
-
         // Save to database
         const questionsToSave = questions.map((q: any) => ({
           userId,
@@ -573,8 +571,8 @@ export const appRouter = router({
 
     getQuestions: publicProcedure.query(async ({ ctx }) => {
       const { getInterviewQuestionsByUserId } = await import("./db");
-      const userId = ctx.user?.id || 0;
-      return await getInterviewQuestionsByUserId(userId);
+      const currentUserId = ctx.user?.id || 0;
+      return await getInterviewQuestionsByUserId(currentUserId);
     }),
 
     getByWritingId: publicProcedure
