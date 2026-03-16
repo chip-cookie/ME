@@ -2,6 +2,8 @@
 
 > **두 개의 독립 시스템으로 구성된 로컬 LLM 기반 취업 준비 통합 플랫폼**
 
+🌐 **라이브 데모**: [https://chip-cookie.github.io/ME/](https://chip-cookie.github.io/ME/)
+
 [![Python](https://img.shields.io/badge/Python-3.11-3776AB?logo=python&logoColor=white)](https://python.org)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?logo=fastapi&logoColor=white)](https://fastapi.tiangolo.com)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
