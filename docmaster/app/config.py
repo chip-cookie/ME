@@ -26,8 +26,8 @@ class Settings(BaseSettings):
     chroma_port: int = 8100
 
     # vLLM
-    vllm_base_url: str = "http://localhost:8000"
-    model_name: str = "cyankiwi/Qwen3.5-4B-Instruct-AWQ-4bit"
+    vllm_base_url: str = "http://localhost:8000/v1"
+    model_name: str = "recruit-master"
 
     # Gleaning
     gleaning_max_iterations: int = 5

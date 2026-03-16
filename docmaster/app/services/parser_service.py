@@ -6,9 +6,8 @@ import subprocess
 import chardet
 from pathlib import Path
 from typing import Callable
-
-from docling.document_converter import DocumentConverter
-
+# Temporarily disable docling to prevent PyTorch DLL errors on Windows
+# from docling.document_converter import DocumentConverter
 log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------

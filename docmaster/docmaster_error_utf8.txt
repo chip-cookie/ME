@@ -1,0 +1,213 @@
+﻿..\.venv\Scripts\python
+.exe : C:\Users\ybw66\D
+esktop\project\ME\.venv
+\Lib\site-packages\pyda
+ntic\_internal\_fields.
+py:152: UserWarning: Fi
+eld "model_name" in Set
+tings has conflict with
+ protected namespace "m
+odel_".
+위치 줄:1 문자:1
++ ..\.venv\Scripts\pyth
+on.exe -m app.main 2> d
+ocmaster_error.txt
++ ~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~~~~~~
+~~~~~~~~~~~~~~~~~~
+    + CategoryInfo     
+         : NotSpecifi  
+  ed: (C:\Users\ybw6   
+ 6\...space "model_    
+".:String) [], Rem    o
+teException
+    + FullyQualifiedEr 
+   rorId : NativeComm  
+  andError
+ 
+
+You may be able to reso
+lve this warning by set
+ting `model_config['pro
+tected_namespaces'] = (
+'settings_',)`.
+  warnings.warn(
+C:\Users\ybw66\Desktop\
+project\ME\.venv\Lib\si
+te-packages\requests\__
+init__.py:113: Requests
+DependencyWarning: urll
+ib3 (2.2.3) or chardet 
+(7.1.0)/charset_normali
+zer (3.4.0) doesn't mat
+ch a supported version!
+  warnings.warn(
+Traceback (most recent 
+call last):
+  File "<frozen runpy>"
+, line 198, in _run_mod
+ule_as_main
+  File "<frozen runpy>"
+, line 88, in _run_code
+  File "C:\Users\ybw66\
+Desktop\project\ME\docm
+aster\app\main.py", lin
+e 9, in <module>
+    from app.api.v1 imp
+ort api_router
+  File "C:\Users\ybw66\
+Desktop\project\ME\docm
+aster\app\api\v1\__init
+__.py", line 2, in <mod
+ule>
+    from app.api.v1 imp
+ort documents, evaluate
+, gleaning, generate, c
+over_letter
+  File "C:\Users\ybw66\
+Desktop\project\ME\docm
+aster\app\api\v1\docume
+nts.py", line 13, in <m
+odule>
+    from app.services.p
+arser_service import Pa
+rserService, SUPPORTED_
+EXTENSIONS
+  File "C:\Users\ybw66\
+Desktop\project\ME\docm
+aster\app\services\__in
+it__.py", line 2, in <m
+odule>
+    from app.services.p
+arser_service import Pa
+rserService
+  File "C:\Users\ybw66\
+Desktop\project\ME\docm
+aster\app\services\pars
+er_service.py", line 10
+, in <module>
+    from docling.docume
+nt_converter import Doc
+umentConverter
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\doc
+ling\document_converter
+.py", line 21, in <modu
+le>
+    from docling.backen
+d.asciidoc_backend impo
+rt AsciiDocBackend
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\doc
+ling\backend\asciidoc_b
+ackend.py", line 20, in
+ <module>
+    from docling.datamo
+del.base_models import 
+InputFormat
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\doc
+ling\datamodel\base_mod
+els.py", line 34, in <m
+odule>
+    from docling.datamo
+del.pipeline_options im
+port PipelineOptions
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\doc
+ling\datamodel\pipeline
+_options.py", line 17, 
+in <module>
+    from docling.datamo
+del import (
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\doc
+ling\datamodel\asr_mode
+l_specs.py", line 9, in
+ <module>
+    from docling.datamo
+del.pipeline_options_as
+r_model import (
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\doc
+ling\datamodel\pipeline
+_options_asr_model.py",
+ line 8, in <module>
+    from docling.datamo
+del.pipeline_options_vl
+m_model import (
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\doc
+ling\datamodel\pipeline
+_options_vlm_model.py",
+ line 6, in <module>
+    from transformers i
+mport StoppingCriteria
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\tra
+nsformers\__init__.py",
+ line 27, in <module>
+    from . import depen
+dency_versions_check
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\tra
+nsformers\dependency_ve
+rsions_check.py", line 
+16, in <module>
+    from .utils.version
+s import require_versio
+n, require_version_core
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\tra
+nsformers\utils\__init_
+_.py", line 24, in <mod
+ule>
+    from .auto_docstrin
+g import (
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\tra
+nsformers\utils\auto_do
+cstring.py", line 30, i
+n <module>
+    from .generic impor
+t ModelOutput
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\tra
+nsformers\utils\generic
+.py", line 51, in <modu
+le>
+    import torch
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\tor
+ch\__init__.py", line 2
+80, in <module>
+    _load_dll_libraries
+()
+  File "C:\Users\ybw66\
+Desktop\project\ME\.ven
+v\Lib\site-packages\tor
+ch\__init__.py", line 2
+63, in _load_dll_librar
+ies
+    raise err
+OSError: [WinError 1114
+] DLL 초기화 루틴을 실행할 수 없습니
+다. Error loading "C:\Us
+ers\ybw66\Desktop\proje
+ct\ME\.venv\Lib\site-pa
+ckages\torch\lib\c10.dl
+l" or one of its depend
+encies.

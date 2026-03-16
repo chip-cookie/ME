@@ -6,7 +6,7 @@ class VLLMClient:
     def __init__(self, base_url: str = None, model: str = None):
         self.base_url = (base_url or os.getenv("VLLM_BASE_URL", "http://localhost:8000")) + "/v1"
         self.client = AsyncOpenAI(base_url=self.base_url, api_key="EMPTY")
-        self.model = model or os.getenv("MODEL_NAME", "cyankiwi/Qwen3.5-4B-Instruct-AWQ-4bit")
+        self.model = model or os.getenv("MODEL_NAME", "recruit-master")
 
     async def chat(
         self,
