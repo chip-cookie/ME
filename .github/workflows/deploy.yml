@@ -44,6 +44,10 @@ jobs:
           NODE_ENV: production
           VITE_BASE_URL: /${{ github.event.repository.name }}/
 
+      - name: Copy index.html to 404.html for SPA routing
+        working-directory: front
+        run: cp dist/index.html dist/404.html
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
