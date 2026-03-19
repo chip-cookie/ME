@@ -2,10 +2,19 @@ import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
 
-// Load .env from project root (parent of front/)
+// .env 파일을 여러 경로에서 순서대로 로드합니다
+// 우선순위: front/.env > front/.env.local > <root>/.env
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-dotenv.config({ path: path.resolve(__dirname, "../../../.env") });
+
+// dev: __dirname = front/server/_core/  → front/
+// prod: __dirname = front/dist/         → front/
+const frontDir = path.resolve(__dirname, __dirname.endsWith("_core") ? "../.." : "..");
+const rootDir = path.resolve(frontDir, "..");
+
+dotenv.config({ path: path.join(rootDir, ".env") });          // root .env (공유 설정)
+dotenv.config({ path: path.join(frontDir, ".env") });         // front/.env (BFF 전용)
+dotenv.config({ path: path.join(frontDir, ".env.local") });   // front/.env.local (로컬 오버라이드, gitignore)
 import { createServer } from "http";
 import net from "net";
 import { serveStatic, setupVite } from "./vite";

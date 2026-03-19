@@ -86,22 +86,23 @@ export async function registerUser(username: string, password: string, name?: st
     if (!db) return { success: false, error: 'Database unavailable' };
 
     try {
-        // Check if username already exists
+        // Validate username and password FIRST (before any DB call)
+        if (username.length < 3 || username.length > 20) {
+            return { success: false, error: '사용자명은 3-20자 사이여야 합니다.' };
+        }
+        if (!/^[a-zA-Z0-9_가-힣]+$/.test(username)) {
+            return { success: false, error: '사용자명은 영문, 숫자, 밑줄, 한글만 사용할 수 있습니다.' };
+        }
+        if (password.length < 6) {
+            return { success: false, error: '비밀번호는 최소 6자 이상이어야 합니다.' };
+        }
+
+        // Then check for duplicate username
         const existingResult = await db.select({ id: users.id }).from(users).where(eq(users.username, username.toLowerCase())).limit(1);
         const existing = existingResult[0] ?? null;
 
         if (existing) {
             return { success: false, error: '이미 존재하는 사용자명입니다.' };
-        }
-
-        // Validate username
-        if (username.length < 3 || username.length > 20) {
-            return { success: false, error: '사용자명은 3-20자 사이여야 합니다.' };
-        }
-
-        // Validate password
-        if (password.length < 6) {
-            return { success: false, error: '비밀번호는 최소 6자 이상이어야 합니다.' };
         }
 
         const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);

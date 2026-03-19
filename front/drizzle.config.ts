@@ -1,15 +1,20 @@
 import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
 
-if (!process.env.DATABASE_URL) {
-  throw new Error("DATABASE_URL is required to run drizzle commands");
-}
+const url = process.env.DATABASE_URL ?? "file:./data/db/jasos.db";
+
+// sqlite:///./path → file:./path 변환
+const normalizedUrl = url.startsWith("sqlite:///./")
+  ? `file:./${url.slice("sqlite:///./".length)}`
+  : url.startsWith("sqlite:////")
+    ? `file:/${url.slice("sqlite:////".length)}`
+    : url;
 
 export default defineConfig({
   schema: "./drizzle/schema.ts",
-  out: "./drizzle",
-  dialect: "postgresql",
+  out: "./drizzle/migrations",
+  dialect: "turso",
   dbCredentials: {
-    url: process.env.DATABASE_URL,
+    url: normalizedUrl,
   },
 });
