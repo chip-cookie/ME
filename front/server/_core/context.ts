@@ -24,6 +24,7 @@ export async function createContext(
       const localUser = await getUserById(parseInt(localUserId, 10));
       if (localUser) {
         // Convert local user to User-like object
+        const now = new Date().toISOString();
         user = {
           id: localUser.id,
           openId: `local_${localUser.id}`,
@@ -32,9 +33,12 @@ export async function createContext(
           email: null,
           role: localUser.role,
           loginMethod: "local",
-          lastSignedIn: new Date(),
-          createdAt: localUser.createdAt || new Date(),
-          updatedAt: new Date(),
+          password: null,
+          openRouterApiKey: null,
+          openRouterModel: null,
+          lastSignedIn: now,
+          createdAt: localUser.createdAt || now,
+          updatedAt: now,
         } as User;
       }
     }
