@@ -49,14 +49,19 @@ async function ensureAdminUser(): Promise<void> {
     }
 }
 
-/** 영숫자 8자리 랜덤 비밀번호 생성 */
+/** 암호학적으로 안전한 랜덤 비밀번호 생성 (crypto.getRandomValues 사용) */
 function generateSecurePassword(): string {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    return Array.from({ length: 12 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+    const arr = new Uint8Array(12);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, (b) => chars[b % chars.length]).join('');
 }
 
-// Initialize admin user on module load - 중복 실행 방지
-adminInitPromise = ensureAdminUser().catch(console.error).then(() => { adminInitPromise = null; });
+// Initialize admin user on module load
+// Promise를 유지해 동일 프로세스 내 중복 실행 방지 (null로 초기화하지 않음)
+if (!adminInitPromise) {
+    adminInitPromise = ensureAdminUser().catch(console.error) as Promise<void>;
+}
 
 /**
  * Get admin user ID for collective intelligence storage

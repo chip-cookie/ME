@@ -62,17 +62,31 @@ class AnalysisService:
         safe_filename = f"{uuid.uuid4().hex}{safe_ext}"
         file_path = upload_dir / safe_filename
 
-        content = await file.read()
-
-        # 파일 크기 제한 검사
-        if len(content) > settings.max_upload_size_bytes:
+        # Content-Length 헤더 기반 사전 검사 (전체 로드 전에 빠른 거부)
+        if file.size and file.size > settings.max_upload_size_bytes:
             raise HTTPException(
                 status_code=413,
                 detail=f"파일 크기가 제한({settings.max_upload_size_mb}MB)을 초과합니다."
             )
 
-        with open(file_path, "wb") as f:
-            f.write(content)
+        # 스트리밍 방식으로 저장하며 크기 재확인 (OOM 방지)
+        total = 0
+        try:
+            with open(file_path, "wb") as f:
+                while chunk := await file.read(1024 * 64):
+                    total += len(chunk)
+                    if total > settings.max_upload_size_bytes:
+                        raise HTTPException(
+                            status_code=413,
+                            detail=f"파일 크기가 제한({settings.max_upload_size_mb}MB)을 초과합니다."
+                        )
+                    f.write(chunk)
+        except HTTPException:
+            file_path.unlink(missing_ok=True)
+            raise
+        except Exception as e:
+            file_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail=f"파일 저장 중 오류가 발생했습니다: {str(e)}")
 
         # 2. Extract Text using Dual-Path Extraction Pipeline
         # Uses Docling (Layer 1) + Native parsers (Layer 2) with LLM repair

@@ -4,7 +4,6 @@ JasoS 공통 파일 업로드 핸들러
 - 경로 탐색 공격 방지, 파일 크기 제한, 임시파일 cleanup 보장
 """
 import uuid
-import os
 import re
 from pathlib import Path
 from fastapi import UploadFile, HTTPException
@@ -15,8 +14,8 @@ settings = get_settings()
 
 _TEMP_DIR = settings.data_dir / "temp_uploads"
 
-# 허용 확장자 (소문자)
-_ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".hwp", ".hwpx", ".txt"}
+# startup 시 한 번만 디렉토리 생성
+_TEMP_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def _safe_filename(original: str) -> str:
@@ -26,11 +25,9 @@ def _safe_filename(original: str) -> str:
     - UUID 접두사로 충돌 방지
     - 확장자 보존
     """
-    # 경로 구분자 제거 후 basename만 추출
-    basename = Path(original).name
-    # 위험 문자 제거 (알파벳, 숫자, 한글, 점, 하이픈, 언더스코어만 허용)
-    safe_stem = re.sub(r'[^\w\uAC00-\uD7A3\u3131-\u314E\u314F-\u3163.-]', '_', Path(basename).stem)
-    ext = Path(basename).suffix.lower()
+    p = Path(original).name  # basename만 추출 (경로 구분자 제거)
+    safe_stem = re.sub(r'[^\w\uAC00-\uD7A3\u3131-\u314E\u314F-\u3163.-]', '_', Path(p).stem)
+    ext = Path(p).suffix.lower()
     return f"{uuid.uuid4().hex}_{safe_stem}{ext}"
 
 
@@ -42,10 +39,11 @@ def _validate_upload(file: UploadFile, max_bytes: int | None = None) -> str:
         raise HTTPException(status_code=400, detail="파일명이 없습니다.")
 
     ext = Path(file.filename).suffix.lower()
-    if ext not in _ALLOWED_EXTENSIONS:
+    allowed = set(settings.allowed_upload_extensions)  # config 단일 출처 사용
+    if ext not in allowed:
         raise HTTPException(
             status_code=400,
-            detail=f"지원하지 않는 파일 형식입니다. 허용 형식: {', '.join(sorted(_ALLOWED_EXTENSIONS))}"
+            detail=f"지원하지 않는 파일 형식입니다. 허용 형식: {', '.join(sorted(allowed))}"
         )
 
     limit = max_bytes or settings.max_upload_size_bytes
@@ -62,11 +60,9 @@ def _validate_upload(file: UploadFile, max_bytes: int | None = None) -> str:
 async def save_upload_to_temp(file: UploadFile) -> Path:
     """UploadFile을 임시 디렉토리에 저장하고 경로를 반환합니다."""
     safe_name = _validate_upload(file)
-    _TEMP_DIR.mkdir(parents=True, exist_ok=True)
-
     file_path = _TEMP_DIR / safe_name
 
-    # 파일 크기 제한 검사 (스트리밍 방식으로 읽으며 체크)
+    # 스트리밍 방식으로 읽으며 파일 크기 제한 검사
     max_bytes = settings.max_upload_size_bytes
     total = 0
     try:
@@ -74,14 +70,14 @@ async def save_upload_to_temp(file: UploadFile) -> Path:
             while chunk := await file.read(1024 * 64):  # 64KB 청크
                 total += len(chunk)
                 if total > max_bytes:
-                    f.close()
-                    file_path.unlink(missing_ok=True)
+                    # with 블록이 닫히기 전에 예외를 raise하면 context manager가 정상 종료
                     raise HTTPException(
                         status_code=413,
                         detail=f"파일 크기가 제한({settings.max_upload_size_mb}MB)을 초과합니다."
                     )
                 f.write(chunk)
     except HTTPException:
+        file_path.unlink(missing_ok=True)
         raise
     except Exception as e:
         file_path.unlink(missing_ok=True)

@@ -36,6 +36,20 @@ function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
   }
 }
 
+/** corpRaw에서 사용자 소유 기업분석 context를 안전하게 추출합니다 */
+function extractCorporateContext(
+  corpRaw: { userId: number; analysisResult: unknown; companyName: string } | null,
+  userId: number
+): Record<string, any> | undefined {
+  if (!corpRaw || corpRaw.userId !== userId) return undefined;
+  const raw = typeof corpRaw.analysisResult === 'string'
+    ? corpRaw.analysisResult
+    : JSON.stringify(corpRaw.analysisResult);
+  const parsed = safeJsonParse<Record<string, any>>(raw, null);
+  if (parsed) parsed.companyName = corpRaw.companyName;
+  return parsed ?? undefined;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -263,7 +277,7 @@ export const appRouter = router({
           const { getAdminUserId } = await import("./auth");
           const { createWritingStyleProfile: createAdminStyle, getWritingStyleProfilesByUserId } = await import("./db");
 
-          const adminId = getAdminUserId();
+          const adminId = await getAdminUserId();
           const adminStyles = await getWritingStyleProfilesByUserId(adminId);
 
           // Find or create the "Collective Patterns" style for admin
@@ -432,14 +446,7 @@ export const appRouter = router({
         const experienceContext = expRaw && expRaw.userId === userId ? expRaw.analysis : undefined;
 
         // Allow access only to user's own corporate analysis
-        let corporateContext = undefined;
-        if (corpRaw && corpRaw.userId === userId) {
-          corporateContext = safeJsonParse<Record<string, any>>(
-            typeof corpRaw.analysisResult === 'string' ? corpRaw.analysisResult : JSON.stringify(corpRaw.analysisResult),
-            null
-          );
-          if (corporateContext) corporateContext.companyName = corpRaw.companyName;
-        }
+        const corporateContext = extractCorporateContext(corpRaw, userId);
 
         // Get collective patterns from admin (format/structure only, no content)
         let collectivePatterns = undefined;
@@ -549,14 +556,7 @@ export const appRouter = router({
         ]);
 
         // Allow access only to user's own corporate analysis
-        let corporateContext = undefined;
-        if (corpRaw && corpRaw.userId === userId) {
-          corporateContext = safeJsonParse<Record<string, any>>(
-            typeof corpRaw.analysisResult === 'string' ? corpRaw.analysisResult : JSON.stringify(corpRaw.analysisResult),
-            null
-          );
-          if (corporateContext) corporateContext.companyName = corpRaw.companyName;
-        }
+        const corporateContext = extractCorporateContext(corpRaw, userId);
 
         // Generate interview questions with consulting
         const questions = await generateInterviewQuestionsWithConsulting({

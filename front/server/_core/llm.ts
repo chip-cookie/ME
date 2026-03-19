@@ -486,9 +486,8 @@ export async function invokeOpenRouter(
   }
 
   const { signal, clear } = createTimeoutSignal(LLM_TIMEOUT_MS);
-  let response: Response;
   try {
-    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -499,14 +498,14 @@ export async function invokeOpenRouter(
       body: JSON.stringify(payload),
       signal,
     });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      throw new Error(`OpenRouter 호출 실패: ${response.status} – ${errorText}`);
+    }
+
+    return (await response.json()) as InvokeResult;
   } finally {
     clear();
   }
-
-  if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`OpenRouter 호출 실패: ${response.status} – ${errorText}`);
-  }
-
-  return (await response.json()) as InvokeResult;
 }

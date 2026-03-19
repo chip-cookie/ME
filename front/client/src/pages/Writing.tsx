@@ -14,6 +14,30 @@ import {
 } from "@/components/ui/dialog";
 import { trpc } from '@/lib/api';
 
+/**
+ * 문자 하나의 바이트 수를 계산합니다.
+ * - EUC-KR 기준: 한글/한자 2바이트 (채용사이트 표준)
+ * - UTF-8 기준: 한글 3바이트, 기타 다국어 문자 2~4바이트
+ */
+function getCharBytes(charCode: number, byteMode: 'euckr' | 'utf8'): number {
+    if (charCode <= 0x7F) return 1;
+    if (byteMode === 'euckr') return 2;
+    if (charCode <= 0x7FF) return 2;
+    if (charCode <= 0xFFFF) return 3;
+    return 4;
+}
+
+/** 텍스트의 전체/공백제외/바이트 수를 계산합니다 */
+function calcCharCounts(text: string) {
+    const total = text.length;
+    const noSpace = text.replace(/\s/g, '').length;
+    let bytes = 0;
+    for (let i = 0; i < text.length; i++) {
+        bytes += getCharBytes(text.charCodeAt(i), 'euckr');
+    }
+    return { total, noSpace, bytes };
+}
+
 export default function Writing() {
     const [prompt, setPrompt] = useState('');
     const [selectedStyleId, setSelectedStyleId] = useState<number | undefined>();
@@ -50,40 +74,9 @@ export default function Writing() {
         bytes: 0
     });
 
-    /**
-     * 문자 하나의 바이트 수를 계산합니다.
-     * - UTF-8 기준: 한글 3바이트, 기타 다국어 문자 2~4바이트
-     * - EUC-KR 기준: 한글/한자 2바이트 (채용사이트 표준)
-     * @param byteMode 'euckr' | 'utf8'
-     */
-    const getCharBytes = (charCode: number, byteMode: 'euckr' | 'utf8'): number => {
-        if (charCode <= 0x7F) return 1; // ASCII
-        if (byteMode === 'euckr') {
-            // EUC-KR: 한글·한자·전각기호 등 0x80 이상은 2바이트
-            return 2;
-        }
-        // UTF-8
-        if (charCode <= 0x7FF) return 2;
-        if (charCode <= 0xFFFF) return 3;
-        return 4;
-    };
-
-    const calculateCounts = (text: string) => {
-        const total = text.length;
-        const noSpace = text.replace(/\s/g, '').length;
-
-        // 채용사이트 표준(EUC-KR 2byte) 기준 바이트 수
-        let bytes = 0;
-        for (let i = 0; i < text.length; i++) {
-            bytes += getCharBytes(text.charCodeAt(i), 'euckr');
-        }
-
-        setCharCount({ total, noSpace, bytes });
-    };
-
     // Update counts when result changes
     useEffect(() => {
-        calculateCounts(result);
+        setCharCount(calcCharCounts(result));
     }, [result]);
 
 

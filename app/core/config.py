@@ -34,7 +34,7 @@ class Settings(BaseSettings):
 
     # 파일 업로드 제한
     max_upload_size_mb: int = 20  # MB 단위, .env의 MAX_UPLOAD_SIZE_MB로 재정의 가능
-    allowed_upload_extensions: list = [".pdf", ".docx", ".doc", ".hwp", ".hwpx", ".txt"]
+    allowed_upload_extensions: list[str] = [".pdf", ".docx", ".doc", ".hwp", ".hwpx", ".txt"]
 
     @property
     def max_upload_size_bytes(self) -> int:

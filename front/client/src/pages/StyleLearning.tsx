@@ -9,6 +9,9 @@ import { getApiUrl } from '@/config';
 
 type TabType = 'writing' | 'interview';
 
+const MAX_FILE_SIZE_MB = 20;
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.hwp', '.hwpx', '.txt'];
+
 export default function StyleLearning() {
     const [activeTab, setActiveTab] = useState<TabType>('writing');
     const [styleName, setStyleName] = useState('');
@@ -69,9 +72,6 @@ export default function StyleLearning() {
         setAnalyzedCharacteristics(null);
         if (fileInputRef.current) fileInputRef.current.value = '';
     };
-
-    const MAX_FILE_SIZE_MB = 20;
-    const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.hwp', '.hwpx', '.txt'];
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];

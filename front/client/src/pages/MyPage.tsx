@@ -6,6 +6,9 @@ import Navbar from '@/components/Navbar';
 type AnalysisType = 'competency' | 'value' | 'pdf' | 'cover_letter';
 type TabType = 'experiences' | 'api-settings';
 
+const MAX_FILE_SIZE_MB = 20;
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.hwp', '.hwpx', '.txt'];
+
 interface Analysis {
     situation: string;
     action: string;
@@ -219,9 +222,6 @@ export default function MyPage() {
             toast.success('경험이 삭제되었습니다.');
         },
     });
-
-    const MAX_FILE_SIZE_MB = 20;
-    const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.hwp', '.hwpx', '.txt'];
 
     const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
