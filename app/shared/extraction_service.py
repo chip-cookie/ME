@@ -34,16 +34,17 @@ try:
 except ImportError:
     DOCX_AVAILABLE = False
 
-# HWP (한글) Support
+# HWP (한글) Support — pyhwp 패키지(pip install pyhwp)가 hwp5 모듈을 제공
+# pyhwpx는 Windows GUI 전용이므로 서버 환경에 사용 불가
 try:
-    from pyhwpx import Hwp
+    from hwp5.hwp5file import Hwp5File as _Hwp5File
     HWP_AVAILABLE = True
 except ImportError:
-    try:
-        from hwp_extract import Hwp5File
-        HWP_AVAILABLE = True
-    except ImportError:
-        HWP_AVAILABLE = False
+    HWP_AVAILABLE = False
+
+# hwp5txt CLI 존재 여부를 한 번만 확인 (subprocess 폴백용)
+import shutil as _shutil
+_HWP5TXT_BIN = _shutil.which("hwp5txt")
 
 try:
     from PIL import Image
@@ -290,53 +291,54 @@ class DualPathExtractor:
         return ExtractionResult(text="", source="doc_unavailable")
 
     def _extract_hwp_native(self, file_path: str) -> ExtractionResult:
-        """Extract HWP (한글) using pyhwpx or hwp_extract."""
-        try:
-            # Try pyhwpx first (more modern)
+        """Extract HWP/HWPX (한글) — 3-tier fallback:
+        1. hwp5 Python API (pip install pyhwp)
+        2. hwp5txt CLI subprocess (pyhwp 설치 시 자동으로 포함)
+        3. 실패 시 명확한 오류 반환 (쓰레기 바이너리 출력 방지)
+        """
+        # Tier 1: hwp5 Python API
+        if HWP_AVAILABLE:
             try:
-                from pyhwpx import Hwp
-                hwp = Hwp()
-                hwp.open(file_path)
-                text = hwp.get_text()
-                hwp.close()
+                text_parts = []
+                with _Hwp5File(file_path) as hwp:
+                    for section in hwp.bodytext.sections:
+                        for para in section.paragraphs:
+                            text = getattr(para, 'text', '') or ''
+                            if text.strip():
+                                text_parts.append(text)
                 return ExtractionResult(
-                    text=text,
-                    metadata={"format": "hwp"},
-                    source="native_pyhwpx"
+                    text="\n".join(text_parts),
+                    metadata={"format": "hwp5"},
+                    source="native_hwp5_api"
                 )
-            except Exception:
-                pass
-            
-            # Fallback to hwp_extract
+            except Exception as e:
+                logger.warning(f"hwp5 API failed, trying CLI: {e}")
+
+        # Tier 2: hwp5txt CLI subprocess
+        if _HWP5TXT_BIN:
             try:
-                from hwp_extract import Hwp5File
-                with Hwp5File(file_path) as hwp:
-                    text_parts = []
-                    for para in hwp.paragraphs():
-                        if para.text.strip():
-                            text_parts.append(para.text)
+                import subprocess
+                result = subprocess.run(
+                    [_HWP5TXT_BIN, file_path],
+                    capture_output=True, text=True, encoding='utf-8', timeout=30
+                )
+                if result.returncode == 0 and result.stdout.strip():
                     return ExtractionResult(
-                        text="\n".join(text_parts),
-                        metadata={"format": "hwp5"},
-                        source="native_hwp_extract"
+                        text=result.stdout,
+                        metadata={"format": "hwp_cli"},
+                        source="native_hwp5txt_cli"
                     )
-            except Exception:
-                pass
-            
-            # Final fallback: try reading as binary and extracting text
-            with open(file_path, 'rb') as f:
-                content = f.read()
-                # Simple text extraction from binary (basic fallback)
-                text = content.decode('utf-8', errors='ignore')
-                return ExtractionResult(
-                    text=text,
-                    metadata={"format": "hwp_binary"},
-                    source="native_hwp_fallback"
-                )
-                
-        except Exception as e:
-            logger.error(f"HWP extraction failed: {e}")
-            return ExtractionResult(text=f"HWP 추출 실패: {str(e)}", source="hwp_error")
+                logger.warning(f"hwp5txt exited {result.returncode}: {result.stderr[:200]}")
+            except Exception as e:
+                logger.warning(f"hwp5txt CLI failed: {e}")
+
+        # Tier 3: 실패 — 바이너리를 UTF-8로 읽으면 OLE 헤더/CP949 데이터가 쓰레기가 됨
+        logger.error(f"HWP 추출 실패: pyhwp 미설치 및 hwp5txt 없음. 'pip install pyhwp'를 실행하세요.")
+        return ExtractionResult(
+            text="",
+            metadata={"error": "pyhwp not installed", "install": "pip install pyhwp"},
+            source="hwp_unavailable"
+        )
     
     def _extract_txt(self, file_path: str) -> ExtractionResult:
         """Extract plain text file."""
