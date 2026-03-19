@@ -8,38 +8,60 @@ const SALT_ROUNDS = 10;
 // Define User type based on DB schema
 type DbUser = typeof users.$inferSelect;
 
+/** 어드민 초기화 중복 실행 방지 플래그 */
+let adminInitPromise: Promise<void> | null = null;
+
 /**
  * Ensure admin user exists (for collective intelligence system)
- * This creates the admin account automatically on first load if not present in DB
+ * 중복 실행 방지를 위해 Promise를 캐싱합니다.
  */
 async function ensureAdminUser(): Promise<void> {
     const db = await getDb();
     if (!db) return;
 
     try {
-        // Check if admin exists
-        const [admin] = await db.select().from(users).where(eq(users.username, 'admin')).limit(1);
+        // Check if admin exists (안전한 배열 접근)
+        const result = await db.select().from(users).where(eq(users.username, 'admin')).limit(1);
+        const admin = result[0] ?? null;
 
         if (!admin) {
-            const passwordHash = await bcrypt.hash('0000', SALT_ROUNDS);
+            // ENV에서 어드민 초기 비밀번호 읽기, 없으면 랜덤 생성
+            const initialPassword = process.env.ADMIN_INITIAL_PASSWORD || generateSecurePassword();
+            const passwordHash = await bcrypt.hash(initialPassword, SALT_ROUNDS);
 
             await db.insert(users).values({
                 username: 'admin',
                 password: passwordHash,
                 name: 'System Admin',
                 role: 'admin',
-                openId: 'local:admin', // Special ID for local admin
+                openId: 'local:admin',
                 loginMethod: 'local',
             });
-            console.log('[Auth] Admin user created (admin/0000)');
+            // 비밀번호를 로그에 남기되, ENV로 설정된 경우엔 마스킹
+            if (process.env.ADMIN_INITIAL_PASSWORD) {
+                console.log('[Auth] Admin user created. Password set via ADMIN_INITIAL_PASSWORD env.');
+            } else {
+                console.log(`[Auth] Admin user created. Initial password: ${initialPassword} (set ADMIN_INITIAL_PASSWORD env to control this)`);
+            }
         }
     } catch (error) {
         console.error('[Auth] Failed to ensure admin user:', error);
     }
 }
 
+/** 암호학적으로 안전한 랜덤 비밀번호 생성 (crypto.getRandomValues 사용) */
+function generateSecurePassword(): string {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    const arr = new Uint8Array(12);
+    crypto.getRandomValues(arr);
+    return Array.from(arr, (b) => chars[b % chars.length]).join('');
+}
+
 // Initialize admin user on module load
-ensureAdminUser().catch(console.error);
+// Promise를 유지해 동일 프로세스 내 중복 실행 방지 (null로 초기화하지 않음)
+if (!adminInitPromise) {
+    adminInitPromise = ensureAdminUser().catch(console.error) as Promise<void>;
+}
 
 /**
  * Get admin user ID for collective intelligence storage
@@ -49,8 +71,8 @@ export async function getAdminUserId(): Promise<number> {
     if (!db) return 1;
 
     try {
-        const [admin] = await db.select().from(users).where(eq(users.role, 'admin')).limit(1);
-        return admin?.id || 1;
+        const result = await db.select({ id: users.id }).from(users).where(eq(users.role, 'admin')).limit(1);
+        return result[0]?.id ?? 1;
     } catch {
         return 1;
     }
@@ -65,7 +87,8 @@ export async function registerUser(username: string, password: string, name?: st
 
     try {
         // Check if username already exists
-        const [existing] = await db.select().from(users).where(eq(users.username, username.toLowerCase())).limit(1);
+        const existingResult = await db.select({ id: users.id }).from(users).where(eq(users.username, username.toLowerCase())).limit(1);
+        const existing = existingResult[0] ?? null;
 
         if (existing) {
             return { success: false, error: '이미 존재하는 사용자명입니다.' };
@@ -84,17 +107,18 @@ export async function registerUser(username: string, password: string, name?: st
         const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
 
         // Insert new user
-        const [result] = await db.insert(users).values({
+        const insertResult = await db.insert(users).values({
             username: username.toLowerCase(),
             password: passwordHash,
             name: name || username,
             role: 'user',
-            openId: `local:${username.toLowerCase()}`, // Generate unique openId for local users
+            openId: `local:${username.toLowerCase()}`,
             loginMethod: 'local',
-        }) as any;
+        });
 
-        // Fetch created user to return
-        const [newUser] = await db.select().from(users).where(eq(users.id, result.insertId)).limit(1);
+        // Fetch created user to return (insertId가 없는 드라이버를 위해 username으로 조회)
+        const newUserResult = await db.select().from(users).where(eq(users.username, username.toLowerCase())).limit(1);
+        const newUser = newUserResult[0] ?? null;
 
         if (!newUser) throw new Error('Failed to retrieve created user');
 
@@ -115,7 +139,8 @@ export async function loginUser(username: string, password: string): Promise<{ s
     if (!db) return { success: false, error: 'Database unavailable' };
 
     try {
-        const [user] = await db.select().from(users).where(eq(users.username, username.toLowerCase())).limit(1);
+        const loginResult = await db.select().from(users).where(eq(users.username, username.toLowerCase())).limit(1);
+        const user = loginResult[0] ?? null;
 
         if (!user || !user.password) {
             return { success: false, error: '사용자를 찾을 수 없습니다.' };
@@ -144,7 +169,8 @@ export async function getUserById(id: number): Promise<Omit<DbUser, 'password' |
     if (!db) return null;
 
     try {
-        const [user] = await db.select().from(users).where(eq(users.id, id)).limit(1);
+        const userByIdResult = await db.select().from(users).where(eq(users.id, id)).limit(1);
+        const user = userByIdResult[0] ?? null;
         if (!user) return null;
 
         const { password: _, openId: __, ...userSafe } = user;
@@ -162,7 +188,8 @@ export async function getUserByUsername(username: string): Promise<Omit<DbUser, 
     if (!db) return null;
 
     try {
-        const [user] = await db.select().from(users).where(eq(users.username, username.toLowerCase())).limit(1);
+        const userByNameResult = await db.select().from(users).where(eq(users.username, username.toLowerCase())).limit(1);
+        const user = userByNameResult[0] ?? null;
         if (!user) return null;
 
         const { password: _, openId: __, ...userSafe } = user;

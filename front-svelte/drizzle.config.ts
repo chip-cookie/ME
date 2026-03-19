@@ -1,13 +1,15 @@
 import { defineConfig } from "drizzle-kit";
 
-// Use process.env for Drizzle Kit CLI
 const connectionString = process.env.DATABASE_URL;
+if (!connectionString) {
+    throw new Error("DATABASE_URL environment variable is required");
+}
 
 export default defineConfig({
     schema: "./src/lib/server/db/schema.ts",
     out: "./drizzle",
     dialect: "mysql",
     dbCredentials: {
-        url: connectionString || '',
+        url: connectionString,
     },
 });

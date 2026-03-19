@@ -5,8 +5,12 @@ import { Textarea } from '@/components/ui/textarea';
 import Navbar from '@/components/Navbar';
 import { toast } from 'sonner';
 import { trpc } from '@/lib/api';
+import { getApiUrl } from '@/config';
 
 type TabType = 'writing' | 'interview';
+
+const MAX_FILE_SIZE_MB = 20;
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.doc', '.hwp', '.hwpx', '.txt'];
 
 export default function StyleLearning() {
     const [activeTab, setActiveTab] = useState<TabType>('writing');
@@ -73,6 +77,16 @@ export default function StyleLearning() {
         const file = e.target.files?.[0];
         if (!file) return;
 
+        const ext = '.' + (file.name.split('.').pop() ?? '').toLowerCase();
+        if (!ALLOWED_EXTENSIONS.includes(ext)) {
+            toast.error('지원하지 않는 파일 형식입니다. (PDF, DOCX, HWP, TXT만 가능)');
+            return;
+        }
+        if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            toast.error(`파일 크기가 너무 큽니다. 최대 ${MAX_FILE_SIZE_MB}MB까지 가능합니다.`);
+            return;
+        }
+
         setIsAnalyzing(true);
         try {
             // 1. Upload to backend for extraction
@@ -80,8 +94,8 @@ export default function StyleLearning() {
             formData.append('file', file);
 
             const uploadEndpoint = activeTab === 'writing'
-                ? 'http://localhost:8000/api/writing/style/upload'
-                : 'http://localhost:8000/api/interview/style/upload';
+                ? getApiUrl('/api/writing/style/upload')
+                : getApiUrl('/api/interview/style/upload');
 
             const response = await fetch(uploadEndpoint, {
                 method: 'POST',

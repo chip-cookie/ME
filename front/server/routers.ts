@@ -26,6 +26,30 @@ async function getOrSettings(userId: number | undefined) {
   return userId ? await getUserOpenRouterSettings(userId) : null;
 }
 
+/** JSON.parse를 안전하게 실행합니다. 파싱 실패 시 fallback 값을 반환합니다 */
+function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
+/** corpRaw에서 사용자 소유 기업분석 context를 안전하게 추출합니다 */
+function extractCorporateContext(
+  corpRaw: { userId: number; analysisResult: unknown; companyName: string } | null,
+  userId: number
+): Record<string, any> | undefined {
+  if (!corpRaw || corpRaw.userId !== userId) return undefined;
+  const raw = typeof corpRaw.analysisResult === 'string'
+    ? corpRaw.analysisResult
+    : JSON.stringify(corpRaw.analysisResult);
+  const parsed = safeJsonParse<Record<string, any>>(raw, null);
+  if (parsed) parsed.companyName = corpRaw.companyName;
+  return parsed ?? undefined;
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -224,7 +248,7 @@ export const appRouter = router({
       return await getWritingStyleProfilesByUserId(userId);
     }),
 
-    createStyle: publicProcedure
+    createStyle: protectedProcedure
       .input(z.object({
         name: z.string().min(1),
         trainingText: z.string().min(10),
@@ -253,7 +277,7 @@ export const appRouter = router({
           const { getAdminUserId } = await import("./auth");
           const { createWritingStyleProfile: createAdminStyle, getWritingStyleProfilesByUserId } = await import("./db");
 
-          const adminId = getAdminUserId();
+          const adminId = await getAdminUserId();
           const adminStyles = await getWritingStyleProfilesByUserId(adminId);
 
           // Find or create the "Collective Patterns" style for admin
@@ -269,7 +293,7 @@ export const appRouter = router({
 
           if (collectiveStyle) {
             // Merge with existing patterns
-            const existing = JSON.parse(collectiveStyle.characteristics || '{}');
+            const existing = safeJsonParse<Record<string, any>>(collectiveStyle.characteristics, {});
             const merged = {
               tones: [...new Set([...(existing.tones || []), ...newPatterns.tones])].slice(0, 20),
               sentence_structures: [...new Set([...(existing.sentence_structures || []), ...newPatterns.sentence_structures])].slice(0, 20),
@@ -308,7 +332,7 @@ export const appRouter = router({
         return { success: true, id: (result as any).insertId };
       }),
 
-    deleteStyle: publicProcedure
+    deleteStyle: protectedProcedure
       .input(z.number())
       .mutation(async ({ input }) => {
         const { deleteWritingStyleProfile } = await import("./db");
@@ -336,7 +360,7 @@ export const appRouter = router({
       return await getInterviewStyleProfilesByUserId(userId);
     }),
 
-    createStyle: publicProcedure
+    createStyle: protectedProcedure
       .input(z.object({
         name: z.string().min(1),
         trainingText: z.string().min(10),
@@ -362,7 +386,7 @@ export const appRouter = router({
         return { success: true, id: (result as any).insertId };
       }),
 
-    deleteStyle: publicProcedure
+    deleteStyle: protectedProcedure
       .input(z.number())
       .mutation(async ({ input }) => {
         const { deleteInterviewStyleProfile } = await import("./db");
@@ -422,20 +446,16 @@ export const appRouter = router({
         const experienceContext = expRaw && expRaw.userId === userId ? expRaw.analysis : undefined;
 
         // Allow access only to user's own corporate analysis
-        let corporateContext = undefined;
-        if (corpRaw && corpRaw.userId === userId) {
-          corporateContext = typeof corpRaw.analysisResult === 'string' ? JSON.parse(corpRaw.analysisResult) : corpRaw.analysisResult;
-          if (corporateContext) corporateContext.companyName = corpRaw.companyName;
-        }
+        const corporateContext = extractCorporateContext(corpRaw, userId);
 
         // Get collective patterns from admin (format/structure only, no content)
         let collectivePatterns = undefined;
         try {
-          const adminId = getAdminUserId();
+          const adminId = await getAdminUserId();
           const adminStyles = await getWritingStyleProfilesByUserId(adminId);
           const collectiveStyle = adminStyles.find(s => s.name === '_collective_writing_patterns');
           if (collectiveStyle?.characteristics) {
-            collectivePatterns = JSON.parse(collectiveStyle.characteristics);
+            collectivePatterns = safeJsonParse<Record<string, any>>(collectiveStyle.characteristics, undefined);
           }
         } catch (e) {
           // Silently continue without collective patterns
@@ -444,7 +464,7 @@ export const appRouter = router({
         // Generate cover letter with character count constraint and RAG
         const result = await generateCoverLetter({
           prompt: input.prompt,
-          style: styleInfo?.characteristics ? JSON.parse(styleInfo.characteristics) : null,
+          style: safeJsonParse<Record<string, any> | null>(styleInfo?.characteristics ?? null, null),
           trainingText: styleInfo?.trainingText || undefined,
           itemType: input.itemType,
           targetCharCount: input.targetCharCount,
@@ -536,16 +556,12 @@ export const appRouter = router({
         ]);
 
         // Allow access only to user's own corporate analysis
-        let corporateContext = undefined;
-        if (corpRaw && corpRaw.userId === userId) {
-          corporateContext = typeof corpRaw.analysisResult === 'string' ? JSON.parse(corpRaw.analysisResult) : corpRaw.analysisResult;
-          if (corporateContext) corporateContext.companyName = corpRaw.companyName;
-        }
+        const corporateContext = extractCorporateContext(corpRaw, userId);
 
         // Generate interview questions with consulting
         const questions = await generateInterviewQuestionsWithConsulting({
           coverLetterText: text,
-          interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
+          interviewStyle: safeJsonParse<Record<string, any> | null>(interviewStyle?.characteristics ?? null, null),
           questionCount: input.questionCount,
           corporateContext,
           openRouterApiKey: orSettings?._rawKey,

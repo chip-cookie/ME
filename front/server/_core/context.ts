@@ -20,7 +20,7 @@ export async function createContext(
     const cookies = parseCookieHeader(opts.req.headers.cookie || "");
     const localUserId = cookies["jasos_user_id"];
 
-    if (localUserId) {
+    if (localUserId && /^\d+$/.test(localUserId)) {
       const localUser = await getUserById(parseInt(localUserId, 10));
       if (localUser) {
         // Convert local user to User-like object

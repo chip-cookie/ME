@@ -2,6 +2,7 @@
 Learning Module Service
 """
 import json
+import logging
 from pathlib import Path
 from typing import List, Optional
 from PIL import Image
@@ -13,6 +14,7 @@ from app.modules.learning.models import LearningLog, SuccessfulExample
 from app.modules.style.models import StyleProfile  # Cross-module dependency
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class LearningService:
@@ -182,9 +184,9 @@ class LearningService:
                     good_texts.append(item['text'])
                 else:
                     bad_texts.append(item['text'])
-                print(f"[{item['file']}] Score: {score} -> {'Good' if score >= 50 else 'Bad'}")
+                logger.info(f"[{item['file']}] Score: {score} -> {'Good' if score >= 50 else 'Bad'}")
             except Exception as e:
-                print(f"AI scoring failed for {item['file']}: {e}")
+                logger.error(f"AI scoring failed for {item['file']}: {e}")
                 good_texts.append(item['text'])  # Default to good on error
         
         # Create style with classified examples
@@ -216,46 +218,14 @@ class LearningService:
             return ""
 
     def _extract_text_from_file(self, file_path: Path) -> str:
-        """파일에서 텍스트를 추출합니다. 지원 포맷: jpg, png, pdf, docx, txt, pptx, hwp"""
-        from pypdf import PdfReader
-        from docx import Document
-        
-        text = ""
-        suffix = file_path.suffix.lower()
-        
+        """파일에서 텍스트를 추출합니다. 공유 DualPathExtractor에 위임합니다."""
+        from app.shared.extraction_service import extract_document
         try:
-            if suffix in ['.jpg', '.jpeg', '.png']:
-                with open(file_path, "rb") as f:
-                    text = self._extract_text_from_image(f.read())
-            elif suffix == '.pdf':
-                reader = PdfReader(str(file_path))
-                for page in reader.pages:
-                    text += page.extract_text() + "\n"
-            elif suffix == '.docx':
-                doc = Document(str(file_path))
-                text = "\n".join([para.text for para in doc.paragraphs])
-            elif suffix in ['.txt', '.md']:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text = f.read()
-            elif suffix == '.pptx':
-                from pptx import Presentation
-                prs = Presentation(str(file_path))
-                for slide in prs.slides:
-                    for shape in slide.shapes:
-                        if hasattr(shape, "text"):
-                            text += shape.text + "\n"
-            elif suffix == '.hwp':
-                import subprocess
-                result = subprocess.run(
-                    ['/home/o/.antigravity-server/jasoS/.venv/bin/hwp5txt', str(file_path)],
-                    capture_output=True, text=True, timeout=30
-                )
-                if result.returncode == 0:
-                    text = result.stdout
+            result = extract_document(str(file_path))
+            return result.text.strip()
         except Exception as e:
-            print(f"파일 처리 오류 {file_path}: {e}")
-        
-        return text.strip()
+            logger.error(f"파일 처리 오류 {file_path}: {e}")
+            return ""
     
     def _extract_style_features(self, texts: List[str]) -> dict:
         all_text = "\n".join(texts)
@@ -383,7 +353,7 @@ class LearningService:
                 processed_count += 1
                 
             except Exception as e:
-                print(f"Error processing {file_path}: {e}")
+                logger.error(f"Error processing {file_path}: {e}")
         
         self.db.commit()
         return {

@@ -2,7 +2,7 @@
 Writing Module Router
 """
 from typing import List
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
+from fastapi import APIRouter, Depends, UploadFile, File
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -42,8 +42,6 @@ def add_version(session_id: int, request: VersionCreateRequest, db: Session = De
         content=request.content,
         edit_type=request.edit_type
     )
-    if "error" in result:
-        raise HTTPException(status_code=404, detail=result["error"])
     return VersionResponse(
         version_id=result["version_id"],
         version_num=result["version_num"],

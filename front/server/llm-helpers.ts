@@ -38,37 +38,37 @@ export async function analyzeWritingStyle(text: string, openRouterApiKey?: strin
         }
     ];
 
-    // TEMPORARILY DISABLED: vLLM - using Gemini directly for debugging
-    // TODO: Re-enable vLLM once connectivity is confirmed
-    // try {
-    //     const result = await invokeVLLM({ messages, temperature: 0.3 });
-    //     const content = result.choices[0].message.content as string;
-    //     const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
-    //     const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
-    //     return JSON.parse(jsonStr);
-    // } catch (vllmError) {
-    //     console.log("[analyzeWritingStyle] vLLM failed, falling back to Gemini...");
-    // }
-
-    // Direct call (OpenRouter 우선, 없으면 기본 LLM)
-    const result = await callLLM({
-        messages,
-        outputSchema: {
-            name: "writing_style_analysis",
-            schema: {
-                type: "object",
-                properties: {
-                    suggested_name: { type: "string", description: "스타일의 특징을 잘 나타내는 이름" },
-                    tone: { type: "string", description: "어조" },
-                    vocabulary_level: { type: "string", description: "어휘 수준" },
-                    sentence_structure: { type: "string", description: "문장 구조 특징" },
-                    key_patterns: { type: "array", items: { type: "string" }, description: "주요 표현 패턴" },
-                    strengths: { type: "array", items: { type: "string" }, description: "강점" },
-                },
-                required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
-            }
+    const outputSchema = {
+        name: "writing_style_analysis",
+        schema: {
+            type: "object",
+            properties: {
+                suggested_name: { type: "string", description: "스타일의 특징을 잘 나타내는 이름" },
+                tone: { type: "string", description: "어조" },
+                vocabulary_level: { type: "string", description: "어휘 수준" },
+                sentence_structure: { type: "string", description: "문장 구조 특징" },
+                key_patterns: { type: "array", items: { type: "string" }, description: "주요 표현 패턴" },
+                strengths: { type: "array", items: { type: "string" }, description: "강점" },
+            },
+            required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
         }
-    }, openRouterApiKey, openRouterModel);
+    };
+
+    // USE_VLLM=true 환경변수 설정 시 로컬 vLLM 우선 사용, 실패 시 기본 LLM으로 폴백
+    if (process.env.USE_VLLM === 'true') {
+        try {
+            const vllmResult = await invokeVLLM({ messages, temperature: 0.3 });
+            const content = vllmResult.choices[0].message.content as string;
+            const jsonMatch = content.match(/```json\s*([\s\S]*?)\s*```/) || content.match(/\{[\s\S]*\}/);
+            const jsonStr = jsonMatch ? (jsonMatch[1] || jsonMatch[0]) : content;
+            return JSON.parse(jsonStr);
+        } catch (vllmError) {
+            console.log("[analyzeWritingStyle] vLLM failed, falling back to primary LLM...");
+        }
+    }
+
+    // OpenRouter 우선, 없으면 기본 LLM
+    const result = await callLLM({ messages, outputSchema }, openRouterApiKey, openRouterModel);
     return JSON.parse(result.choices[0].message.content as string);
 }
 

@@ -49,6 +49,6 @@ class JudgeService:
             result["total_score"] = round(weighted_sum / total_weight, 2)
             result["pass_fail"] = result["total_score"] >= self.PASS_THRESHOLDS.get(org_type, 3.5)
             return result
-        except (json.JSONDecodeError, Exception) as exc:
+        except Exception as exc:
             logger.error("Judge parse error: %s | raw: %s", exc, raw[:200])
             return {"error": "Invalid JSON", "total_score": 0.0, "pass_fail": False, "raw": raw}

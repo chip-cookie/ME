@@ -1,9 +1,11 @@
 
 import os
+import uuid
 import json
 import logging
 import requests
 import xmltodict
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
@@ -26,6 +28,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 from app.modules.analysis.models import AnalysisSession
 from app.modules.analysis.extraction_service import extract_document
+from app.modules.analysis.schemas import JDAnalysisSchema
 from app.core.config import get_settings
 
 settings = get_settings()
@@ -51,34 +54,57 @@ class AnalysisService:
         self.embeddings = HuggingFaceEmbeddings(model_name="jhgan/ko-sroberta-multitask")
 
     async def create_session(self, file: UploadFile) -> AnalysisSession:
-        # 1. Save File (Basic implementation) - In prod, use S3 or distinct storage
-        upload_dir = "data/uploads/jd"
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, file.filename)
-        
-        content = await file.read()
-        with open(file_path, "wb") as f:
-            f.write(content)
-            
+        # 1. Save File - UUID 기반 파일명으로 경로 탐색 공격 방지
+        upload_dir = Path(settings.data_dir) / "uploads" / "jd"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        original_name = Path(file.filename or "upload").name
+        safe_ext = Path(original_name).suffix.lower()
+        safe_filename = f"{uuid.uuid4().hex}{safe_ext}"
+        file_path = upload_dir / safe_filename
+
+        # Content-Length 헤더 기반 사전 검사 (전체 로드 전에 빠른 거부)
+        if file.size and file.size > settings.max_upload_size_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"파일 크기가 제한({settings.max_upload_size_mb}MB)을 초과합니다."
+            )
+
+        # 스트리밍 방식으로 저장하며 크기 재확인 (OOM 방지)
+        total = 0
+        try:
+            with open(file_path, "wb") as f:
+                while chunk := await file.read(1024 * 64):
+                    total += len(chunk)
+                    if total > settings.max_upload_size_bytes:
+                        raise HTTPException(
+                            status_code=413,
+                            detail=f"파일 크기가 제한({settings.max_upload_size_mb}MB)을 초과합니다."
+                        )
+                    f.write(chunk)
+        except HTTPException:
+            file_path.unlink(missing_ok=True)
+            raise
+        except Exception as e:
+            file_path.unlink(missing_ok=True)
+            raise HTTPException(status_code=500, detail=f"파일 저장 중 오류가 발생했습니다: {str(e)}")
+
         # 2. Extract Text using Dual-Path Extraction Pipeline
         # Uses Docling (Layer 1) + Native parsers (Layer 2) with LLM repair
-        extraction_result = extract_document(file_path, llm=self.llm)
+        extraction_result = extract_document(str(file_path), llm=self.llm)
         text_content = extraction_result.text
-        
-        # Store extraction metadata for debugging/analysis
-        extraction_metadata = extraction_result.to_dict()
 
-        # 3. Create Session DB Entry
+        # 3. Create Session DB Entry (내부 파일 경로 대신 안전한 식별자만 저장)
         session = AnalysisSession(
-            file_name=file.filename,
+            file_name=original_name,       # 원본 표시명
             file_type=file.content_type,
-            file_path=file_path,
+            file_path=safe_filename,        # 내부 저장 파일명만 (전체 경로 노출 방지)
             raw_text=text_content
         )
         self.db.add(session)
         self.db.commit()
         self.db.refresh(session)
-        
+
         return session
 
     def analyze_jd(self, session_id: int):

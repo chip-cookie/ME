@@ -6,6 +6,9 @@ import Navbar from '@/components/Navbar';
 type AnalysisType = 'competency' | 'value' | 'pdf' | 'cover_letter';
 type TabType = 'experiences' | 'api-settings';
 
+const MAX_FILE_SIZE_MB = 20;
+const ALLOWED_EXTENSIONS = ['.pdf', '.docx', '.hwp', '.hwpx', '.txt'];
+
 interface Analysis {
     situation: string;
     action: string;
@@ -140,8 +143,13 @@ function ApiSettingsTab() {
                         )}
                         <button
                             onClick={() => {
-                                if (!apiKey.trim()) { toast.error('API 키를 입력해주세요.'); return; }
-                                saveMutation.mutate({ apiKey: apiKey.trim(), model: selectedModel });
+                                const trimmed = apiKey.trim();
+                                if (!trimmed) { toast.error('API 키를 입력해주세요.'); return; }
+                                if (!trimmed.startsWith('sk-or-')) {
+                                    toast.error('올바른 OpenRouter API 키 형식이 아닙니다. (sk-or-로 시작해야 합니다)');
+                                    return;
+                                }
+                                saveMutation.mutate({ apiKey: trimmed, model: selectedModel });
                             }}
                             disabled={saveMutation.isPending}
                             className="flex-1 py-2 bg-indigo-600 text-white rounded-lg text-sm hover:bg-indigo-700 transition disabled:opacity-50"
@@ -219,10 +227,14 @@ export default function MyPage() {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const allowedTypes = ['.pdf', '.docx', '.hwp', '.hwpx', '.txt'];
-        const ext = '.' + file.name.split('.').pop()?.toLowerCase();
-        if (!allowedTypes.includes(ext)) {
+        const ext = '.' + (file.name.split('.').pop() ?? '').toLowerCase();
+        if (!ALLOWED_EXTENSIONS.includes(ext)) {
             toast.error('지원하지 않는 파일 형식입니다. (PDF, DOCX, HWP, TXT만 가능)');
+            return;
+        }
+
+        if (file.size > MAX_FILE_SIZE_MB * 1024 * 1024) {
+            toast.error(`파일 크기가 너무 큽니다. 최대 ${MAX_FILE_SIZE_MB}MB까지 가능합니다.`);
             return;
         }
 
