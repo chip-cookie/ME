@@ -2,8 +2,9 @@ import pandas as pd
 from fastapi import UploadFile
 import io
 import os
+import uuid
 import logging
-from typing import Optional
+from pathlib import Path
 from app.modules.analysis.extraction_service import extract_document
 from app.core.config import get_settings
 
@@ -32,19 +33,20 @@ class UniversalFileParser:
             
             # For other formats, use the existing Dual-Path Extraction Pipeline
             # We need to save to a temp file first because extract_document expects a path
-            temp_dir = settings.data_dir / "temp_uploads"
-            os.makedirs(temp_dir, exist_ok=True)
-            temp_path = os.path.join(temp_dir, f"temp_{filename}")
-            
-            with open(temp_path, "wb") as f:
-                f.write(content)
-            
-            result = extract_document(temp_path)
-            
-            # Clean up temp file
-            if os.path.exists(temp_path):
-                os.remove(temp_path)
-                
+            temp_dir = Path(settings.data_dir) / "temp_uploads"
+            temp_dir.mkdir(parents=True, exist_ok=True)
+            # UUID 기반 파일명으로 경로 탐색 공격 방지
+            safe_ext = Path(filename).suffix.lower() if filename else ".tmp"
+            temp_path = temp_dir / f"{uuid.uuid4().hex}{safe_ext}"
+
+            try:
+                with open(temp_path, "wb") as f:
+                    f.write(content)
+                result = extract_document(str(temp_path))
+            finally:
+                # 성공/실패 여부와 무관하게 임시파일 항상 삭제
+                temp_path.unlink(missing_ok=True)
+
             return result.text
             
         except Exception as e:

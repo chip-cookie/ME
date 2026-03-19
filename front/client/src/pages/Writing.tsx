@@ -50,26 +50,32 @@ export default function Writing() {
         bytes: 0
     });
 
-    const calculateCounts = (text: string) => {
-        // 1. Total Chars
-        const total = text.length;
+    /**
+     * 문자 하나의 바이트 수를 계산합니다.
+     * - UTF-8 기준: 한글 3바이트, 기타 다국어 문자 2~4바이트
+     * - EUC-KR 기준: 한글/한자 2바이트 (채용사이트 표준)
+     * @param byteMode 'euckr' | 'utf8'
+     */
+    const getCharBytes = (charCode: number, byteMode: 'euckr' | 'utf8'): number => {
+        if (charCode <= 0x7F) return 1; // ASCII
+        if (byteMode === 'euckr') {
+            // EUC-KR: 한글·한자·전각기호 등 0x80 이상은 2바이트
+            return 2;
+        }
+        // UTF-8
+        if (charCode <= 0x7FF) return 2;
+        if (charCode <= 0xFFFF) return 3;
+        return 4;
+    };
 
-        // 2. No Space
+    const calculateCounts = (text: string) => {
+        const total = text.length;
         const noSpace = text.replace(/\s/g, '').length;
 
-        // 3. Bytes (Korean: 2bytes, English: 1byte standard)
-        // Note: Some sites treat Korean as 3bytes (UTF-8), but typical hiring sites use 2byte (EUC-KR standard legacy)
-        // Let's implement the standard 2-byte calculation often used in Korea
+        // 채용사이트 표준(EUC-KR 2byte) 기준 바이트 수
         let bytes = 0;
         for (let i = 0; i < text.length; i++) {
-            const charCode = text.charCodeAt(i);
-            // Korean/Multibyte range -> 2 bytes (simplification for recruiting sites)
-            // Or calculate real UTF-8 bytes if needed. 
-            // Usually: Hangul = 2 or 3. Let's go with 2 for general conformity or 3 for UTF-8.
-            // Let's stick to simple byte loop:
-            bytes += (charCode > 127) ? 2 : 1;
-            // If user wants UTF-8 specifically (3bytes for Hangul), we can adjust.
-            // Conventionally "2byte" is widely accepted term in Resume sites.
+            bytes += getCharBytes(text.charCodeAt(i), 'euckr');
         }
 
         setCharCount({ total, noSpace, bytes });

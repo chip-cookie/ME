@@ -1,9 +1,11 @@
 
 import os
+import uuid
 import json
 import logging
 import requests
 import xmltodict
+from pathlib import Path
 from typing import Optional, List, Dict, Any
 from sqlalchemy.orm import Session
 from fastapi import UploadFile, HTTPException
@@ -51,34 +53,43 @@ class AnalysisService:
         self.embeddings = HuggingFaceEmbeddings(model_name="jhgan/ko-sroberta-multitask")
 
     async def create_session(self, file: UploadFile) -> AnalysisSession:
-        # 1. Save File (Basic implementation) - In prod, use S3 or distinct storage
-        upload_dir = "data/uploads/jd"
-        os.makedirs(upload_dir, exist_ok=True)
-        file_path = os.path.join(upload_dir, file.filename)
-        
+        # 1. Save File - UUID 기반 파일명으로 경로 탐색 공격 방지
+        upload_dir = Path(settings.data_dir) / "uploads" / "jd"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        original_name = Path(file.filename or "upload").name
+        safe_ext = Path(original_name).suffix.lower()
+        safe_filename = f"{uuid.uuid4().hex}{safe_ext}"
+        file_path = upload_dir / safe_filename
+
         content = await file.read()
+
+        # 파일 크기 제한 검사
+        if len(content) > settings.max_upload_size_bytes:
+            raise HTTPException(
+                status_code=413,
+                detail=f"파일 크기가 제한({settings.max_upload_size_mb}MB)을 초과합니다."
+            )
+
         with open(file_path, "wb") as f:
             f.write(content)
-            
+
         # 2. Extract Text using Dual-Path Extraction Pipeline
         # Uses Docling (Layer 1) + Native parsers (Layer 2) with LLM repair
-        extraction_result = extract_document(file_path, llm=self.llm)
+        extraction_result = extract_document(str(file_path), llm=self.llm)
         text_content = extraction_result.text
-        
-        # Store extraction metadata for debugging/analysis
-        extraction_metadata = extraction_result.to_dict()
 
-        # 3. Create Session DB Entry
+        # 3. Create Session DB Entry (내부 파일 경로 대신 안전한 식별자만 저장)
         session = AnalysisSession(
-            file_name=file.filename,
+            file_name=original_name,       # 원본 표시명
             file_type=file.content_type,
-            file_path=file_path,
+            file_path=safe_filename,        # 내부 저장 파일명만 (전체 경로 노출 방지)
             raw_text=text_content
         )
         self.db.add(session)
         self.db.commit()
         self.db.refresh(session)
-        
+
         return session
 
     def analyze_jd(self, session_id: int):
