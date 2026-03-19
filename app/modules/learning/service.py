@@ -218,46 +218,14 @@ class LearningService:
             return ""
 
     def _extract_text_from_file(self, file_path: Path) -> str:
-        """파일에서 텍스트를 추출합니다. 지원 포맷: jpg, png, pdf, docx, txt, pptx, hwp"""
-        from pypdf import PdfReader
-        from docx import Document
-        
-        text = ""
-        suffix = file_path.suffix.lower()
-        
+        """파일에서 텍스트를 추출합니다. 공유 DualPathExtractor에 위임합니다."""
+        from app.shared.extraction_service import extract_document
         try:
-            if suffix in ['.jpg', '.jpeg', '.png']:
-                with open(file_path, "rb") as f:
-                    text = self._extract_text_from_image(f.read())
-            elif suffix == '.pdf':
-                reader = PdfReader(str(file_path))
-                for page in reader.pages:
-                    text += page.extract_text() + "\n"
-            elif suffix == '.docx':
-                doc = Document(str(file_path))
-                text = "\n".join([para.text for para in doc.paragraphs])
-            elif suffix in ['.txt', '.md']:
-                with open(file_path, "r", encoding="utf-8") as f:
-                    text = f.read()
-            elif suffix == '.pptx':
-                from pptx import Presentation
-                prs = Presentation(str(file_path))
-                for slide in prs.slides:
-                    for shape in slide.shapes:
-                        if hasattr(shape, "text"):
-                            text += shape.text + "\n"
-            elif suffix == '.hwp':
-                import subprocess
-                result = subprocess.run(
-                    [settings.hwp5txt_path, str(file_path)],
-                    capture_output=True, text=True, timeout=30
-                )
-                if result.returncode == 0:
-                    text = result.stdout
+            result = extract_document(str(file_path))
+            return result.text.strip()
         except Exception as e:
             logger.error(f"파일 처리 오류 {file_path}: {e}")
-        
-        return text.strip()
+            return ""
     
     def _extract_style_features(self, texts: List[str]) -> dict:
         all_text = "\n".join(texts)

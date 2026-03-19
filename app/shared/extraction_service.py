@@ -103,7 +103,7 @@ class DualPathExtractor:
     
     SIMILARITY_THRESHOLD = 0.85  # Below this, trigger LLM repair
     IMAGE_EXTENSIONS = {'.png', '.jpg', '.jpeg', '.gif', '.bmp', '.webp', '.tiff'}
-    DOCUMENT_EXTENSIONS = {'.pdf', '.docx', '.doc', '.txt', '.html', '.pptx'}
+    DOCUMENT_EXTENSIONS = {'.pdf', '.docx', '.doc', '.txt', '.html', '.pptx', '.hwp', '.hwpx', '.md'}
     
     def __init__(self, llm: Optional[Any] = None):
         """Initialize extractor with optional LLM for repair."""
@@ -213,8 +213,10 @@ class DualPathExtractor:
                 if DOCX_AVAILABLE:
                     return self._extract_docx_native(file_path)
                 return ExtractionResult(text="Error: python-docx library not installed", source="missing_dependency_docx")
-            elif ext == '.txt':
+            elif ext in ['.txt', '.md']:
                 return self._extract_txt(file_path)
+            elif ext == '.doc':
+                return self._extract_doc_native(file_path)
             elif ext in ['.hwp', '.hwpx']:
                 if HWP_AVAILABLE:
                     return self._extract_hwp_native(file_path)
@@ -265,6 +267,28 @@ class DualPathExtractor:
             source="native_docx"
         )
     
+    def _extract_doc_native(self, file_path: str) -> ExtractionResult:
+        """Extract legacy .doc using antiword subprocess (graceful fallback)."""
+        import subprocess
+        import shutil
+        antiword = shutil.which("antiword")
+        if antiword:
+            try:
+                result = subprocess.run(
+                    [antiword, file_path],
+                    capture_output=True, text=True, timeout=30
+                )
+                if result.returncode == 0 and result.stdout.strip():
+                    return ExtractionResult(
+                        text=result.stdout,
+                        metadata={"format": "doc"},
+                        source="native_antiword"
+                    )
+            except Exception as e:
+                logger.warning(f"antiword failed: {e}")
+        # Fallback: Docling handles .doc via LibreOffice on some systems
+        return ExtractionResult(text="", source="doc_unavailable")
+
     def _extract_hwp_native(self, file_path: str) -> ExtractionResult:
         """Extract HWP (한글) using pyhwpx or hwp_extract."""
         try:
