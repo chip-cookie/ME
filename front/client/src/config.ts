@@ -1,8 +1,8 @@
 /**
  * API Configuration
- * 
- * Vercel 배포 시 백엔드(Ngrok) 주소를 연결하기 위한 설정입니다.
- * 로컬 개발 시에는 빈 문자열("")로 설정되어 프록시를 사용합니다.
+ *
+ * 로컬 개발 시에는 빈 문자열("")로 설정되어 Express 프록시를 사용합니다.
+ * 외부 배포 시 VITE_API_URL 환경변수에 백엔드 주소를 설정하세요.
  */
 export const API_BASE_URL = import.meta.env.VITE_API_URL || "";
 
