@@ -2,10 +2,11 @@
 Writing Module Service
 """
 import difflib
+import logging
 from typing import Optional
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.expression import func
-import json
 
 from app.core.config import get_settings
 from app.modules.writing.models import WritingSession, VersionHistory, ChangeLog
@@ -13,6 +14,7 @@ from app.modules.style.service import StyleService
 from app.modules.learning.models import SuccessfulExample
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class WritingService:
@@ -97,7 +99,7 @@ class WritingService:
                         lines.append(f"- 분석: {str(ex.analysis)[:200]}...")
             return "\n".join(lines)
         except Exception as e:
-            print(f"Insight Error: {e}")
+            logger.warning(f"Insight Error: {e}")
             return ""
     
     async def _generate_with_ai(self, prompt: str) -> str:
@@ -105,7 +107,8 @@ class WritingService:
             if settings.openai_api_key:
                 return await self._generate_with_openai(prompt)
             return await self._generate_with_ollama(prompt)
-        except:
+        except Exception as e:
+            logger.error(f"AI generation failed: {e}")
             return f"[AI 생성 결과]\n\n{prompt[:100]}...\n\n(API 연결 실패)"
     
     async def _generate_with_openai(self, prompt: str) -> str:
@@ -127,13 +130,13 @@ class WritingService:
             )
             return response.message.content
         except Exception as e:
-            print(f"Ollama Error: {e}")
-            raise Exception("Ollama Error")
+            logger.error(f"Ollama Error: {e}")
+            raise
             
     def add_version(self, session_id: int, content: str, edit_type: str = "user_revision") -> dict:
         session = self.db.query(WritingSession).filter(WritingSession.id == session_id).first()
         if not session:
-            return {"error": "세션을 찾을 수 없습니다"}
+            raise HTTPException(status_code=404, detail="세션을 찾을 수 없습니다")
         
         prev_version = self.db.query(VersionHistory)\
             .filter(VersionHistory.session_id == session_id)\

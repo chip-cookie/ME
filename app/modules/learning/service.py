@@ -2,6 +2,7 @@
 Learning Module Service
 """
 import json
+import logging
 from pathlib import Path
 from typing import List, Optional
 from PIL import Image
@@ -13,6 +14,7 @@ from app.modules.learning.models import LearningLog, SuccessfulExample
 from app.modules.style.models import StyleProfile  # Cross-module dependency
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class LearningService:
@@ -182,9 +184,9 @@ class LearningService:
                     good_texts.append(item['text'])
                 else:
                     bad_texts.append(item['text'])
-                print(f"[{item['file']}] Score: {score} -> {'Good' if score >= 50 else 'Bad'}")
+                logger.info(f"[{item['file']}] Score: {score} -> {'Good' if score >= 50 else 'Bad'}")
             except Exception as e:
-                print(f"AI scoring failed for {item['file']}: {e}")
+                logger.error(f"AI scoring failed for {item['file']}: {e}")
                 good_texts.append(item['text'])  # Default to good on error
         
         # Create style with classified examples
@@ -247,13 +249,13 @@ class LearningService:
             elif suffix == '.hwp':
                 import subprocess
                 result = subprocess.run(
-                    ['/home/o/.antigravity-server/jasoS/.venv/bin/hwp5txt', str(file_path)],
+                    [settings.hwp5txt_path, str(file_path)],
                     capture_output=True, text=True, timeout=30
                 )
                 if result.returncode == 0:
                     text = result.stdout
         except Exception as e:
-            print(f"파일 처리 오류 {file_path}: {e}")
+            logger.error(f"파일 처리 오류 {file_path}: {e}")
         
         return text.strip()
     
@@ -383,7 +385,7 @@ class LearningService:
                 processed_count += 1
                 
             except Exception as e:
-                print(f"Error processing {file_path}: {e}")
+                logger.error(f"Error processing {file_path}: {e}")
         
         self.db.commit()
         return {

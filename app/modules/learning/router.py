@@ -13,16 +13,17 @@ from app.core.config import get_settings
 from app.core.database import get_db
 from app.modules.learning.service import LearningService
 from app.modules.learning.schemas import ImageLearningResponse, AutoIngestRequest
-from app.modules.style.models import StyleProfile
+from app.modules.style.service import StyleService
+
+settings = get_settings()
 
 router = APIRouter(prefix="/api/learning", tags=["learning"])
-settings = get_settings()
 
 
 @router.get("/styles")
 def get_styles(db: Session = Depends(get_db)):
     """학습된 스타일 목록을 조회합니다."""
-    return db.query(StyleProfile).all()
+    return StyleService(db).get_all_styles()
 
 
 @router.post("/upload")

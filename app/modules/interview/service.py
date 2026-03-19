@@ -2,20 +2,23 @@
 Interview Module - 면접 질문 생성 서비스
 """
 import json
+import logging
 import re
 from typing import List, Optional
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
 from app.modules.style.models import StyleProfile
 
 settings = get_settings()
+logger = logging.getLogger(__name__)
 
 
 class InterviewService:
     def __init__(self, db: Session):
         self.db = db
-    
+
     async def generate_questions(
         self,
         style_name: str,
@@ -25,22 +28,22 @@ class InterviewService:
     ) -> dict:
         """학습된 스타일 기반으로 예상 면접 질문 생성"""
         from ollama import AsyncClient
-        
+
         # 스타일 조회
         style = self.db.query(StyleProfile).filter(
             StyleProfile.name == style_name
         ).first()
-        
+
         if not style:
-            return {"error": f"스타일 '{style_name}'을 찾을 수 없습니다."}
-        
+            raise HTTPException(status_code=404, detail=f"스타일 '{style_name}'을 찾을 수 없습니다.")
+
         # 예시 텍스트 수집
         examples = []
         if style.good_examples:
             examples.extend(style.good_examples[:3])
-        
+
         if not examples:
-            return {"error": "학습된 예시가 없습니다. 먼저 자료를 학습시켜주세요."}
+            raise HTTPException(status_code=400, detail="학습된 예시가 없습니다. 먼저 자료를 학습시켜주세요.")
         
         # 프롬프트 생성
         context = "\n---\n".join(examples)
@@ -81,4 +84,5 @@ class InterviewService:
                 "total": len(questions)
             }
         except Exception as e:
-            return {"error": f"AI 호출 실패: {str(e)}"}
+            logger.error(f"AI 호출 실패: {e}")
+            raise HTTPException(status_code=503, detail=f"AI 호출 실패: {str(e)}")

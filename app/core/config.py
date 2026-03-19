@@ -36,6 +36,9 @@ class Settings(BaseSettings):
     max_upload_size_mb: int = 20  # MB 단위, .env의 MAX_UPLOAD_SIZE_MB로 재정의 가능
     allowed_upload_extensions: list[str] = [".pdf", ".docx", ".doc", ".hwp", ".hwpx", ".txt"]
 
+    # 외부 도구 경로 (.env의 HWP5TXT_PATH로 재정의 가능)
+    hwp5txt_path: str = "hwp5txt"  # 기본값: PATH에서 찾음
+
     @property
     def max_upload_size_bytes(self) -> int:
         return self.max_upload_size_mb * 1024 * 1024

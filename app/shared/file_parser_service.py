@@ -5,7 +5,7 @@ import os
 import uuid
 import logging
 from pathlib import Path
-from app.modules.analysis.extraction_service import extract_document
+from app.shared.extraction_service import extract_document
 from app.core.config import get_settings
 
 settings = get_settings()

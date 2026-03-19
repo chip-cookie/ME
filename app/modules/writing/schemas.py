@@ -2,8 +2,15 @@
 Writing Module Schemas
 """
 from datetime import datetime
+from enum import Enum
 from typing import Optional, List
 from pydantic import BaseModel, Field
+
+
+class EditType(str, Enum):
+    ai_generated = "ai_generated"
+    user_revision = "user_revision"
+    ai_suggestion = "ai_suggestion"
 
 
 class WritingGenerateRequest(BaseModel):
@@ -21,14 +28,14 @@ class WritingGenerateResponse(BaseModel):
 
 class VersionCreateRequest(BaseModel):
     content: str
-    edit_type: str = "user_revision"
+    edit_type: EditType = EditType.user_revision
 
 
 class VersionResponse(BaseModel):
     version_id: int
     version_num: int
     content: str
-    edit_type: str
+    edit_type: EditType
     created_at: Optional[datetime]
     diff: Optional[dict] = None
     

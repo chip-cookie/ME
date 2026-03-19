@@ -1,5 +1,6 @@
 import json
 import logging
+from fastapi import HTTPException
 from sqlalchemy.orm import Session
 
 from app.models.schema import Document, EvaluationResult, GleaningSession
@@ -35,7 +36,7 @@ class GleaningService:
     ) -> dict:
         doc_record = self.db.query(Document).filter(Document.id == document_id).first()
         if not doc_record:
-            return {"error": "Document not found"}
+            raise HTTPException(status_code=404, detail="Document not found")
 
         current_text = doc_record.parsed_markdown or ""
         paragraphs = current_text.split("\n\n")

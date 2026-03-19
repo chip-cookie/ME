@@ -5,9 +5,14 @@ import * as dotenv from 'dotenv';
 dotenv.config();
 
 async function seedAdmin() {
-    console.log('Seeding admin account...');
+    const password = process.env.ADMIN_SEED_PASSWORD;
+    if (!password) {
+        console.error('Error: ADMIN_SEED_PASSWORD environment variable is required');
+        process.exit(1);
+    }
 
-    const passwordHash = await hash('manus123', 10);
+    console.log('Seeding admin account...');
+    const passwordHash = await hash(password, 10);
 
     try {
         await db.insert(users).values({
@@ -18,9 +23,7 @@ async function seedAdmin() {
             email: 'admin@example.com',
             loginMethod: 'local'
         });
-        console.log('Admin account created successfully.');
-        console.log('Username: admin');
-        console.log('Password: manus123');
+        console.log('Admin account created successfully. Username: admin');
     } catch (e) {
         console.error('Failed to create admin:', e);
     }

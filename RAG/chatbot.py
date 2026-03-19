@@ -1,11 +1,11 @@
 import os
-from langchain.document_loaders import PyPDFLoader
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_openai import OpenAIEmbeddings, ChatOpenAI
-from langchain.vectorstores import FAISS
+from langchain_community.vectorstores import FAISS
 from langchain.chains.combine_documents import create_stuff_documents_chain
-from langchain.prompts import PromptTemplate
-from langchain.docstore.document import Document
+from langchain_core.prompts import PromptTemplate
+from langchain_core.documents import Document
 import streamlit as st
 
 # FAISS 인덱스 생성 및 로드 함수
@@ -152,4 +152,4 @@ def show():
                 st.markdown(response)
 
 if __name__ == "__main__":
-    show_chatbot()
+    show()

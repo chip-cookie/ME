@@ -28,6 +28,7 @@ from langchain_core.pydantic_v1 import BaseModel, Field
 
 from app.modules.analysis.models import AnalysisSession
 from app.modules.analysis.extraction_service import extract_document
+from app.modules.analysis.schemas import JDAnalysisSchema
 from app.core.config import get_settings
 
 settings = get_settings()
