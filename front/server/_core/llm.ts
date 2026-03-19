@@ -1,6 +1,16 @@
 import { ENV } from "./env";
 import { DEFAULT_OPENROUTER_MODEL } from "../../shared/const";
 
+/** LLM API 호출에 사용할 기본 타임아웃 (ms) */
+const LLM_TIMEOUT_MS = parseInt(process.env.LLM_TIMEOUT_MS ?? "90000", 10);
+
+/** AbortSignal + 자동 정리 타이머를 반환합니다 */
+function createTimeoutSignal(ms: number): { signal: AbortSignal; clear: () => void } {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), ms);
+  return { signal: controller.signal, clear: () => clearTimeout(timer) };
+}
+
 export type Role = "system" | "user" | "assistant" | "tool" | "function";
 
 export type TextContent = {
@@ -295,6 +305,7 @@ export async function invokeVLLM(params: {
     max_tokens: 2048,
   };
 
+  const { signal, clear } = createTimeoutSignal(LLM_TIMEOUT_MS);
   try {
     const response = await fetch(url, {
       method: "POST",
@@ -302,6 +313,7 @@ export async function invokeVLLM(params: {
         "content-type": "application/json",
       },
       body: JSON.stringify(payload),
+      signal,
     });
 
     if (!response.ok) {
@@ -314,6 +326,8 @@ export async function invokeVLLM(params: {
   } catch (error) {
     console.warn("[vLLM] Connection failed, will fallback to Gemini:", error);
     throw error;
+  } finally {
+    clear();
   }
 }
 
@@ -412,14 +426,20 @@ export async function invokeLLM(params: InvokeParams): Promise<InvokeResult> {
       : ENV.geminiApiKey ? "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions"
         : resolveApiUrl(false);
 
-    return fetch(url, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify(requestPayload),
-    });
+    const { signal, clear } = createTimeoutSignal(LLM_TIMEOUT_MS);
+    try {
+      return await fetch(url, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify(requestPayload),
+        signal,
+      });
+    } finally {
+      clear();
+    }
   };
 
   // Try Gemini first, fallback to Groq on rate limit (429)
@@ -465,16 +485,23 @@ export async function invokeOpenRouter(
     payload.response_format = normalizedResponseFormat;
   }
 
-  const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${apiKey}`,
-      "http-referer": "https://jasos.app",
-      "x-title": "JasoS",
-    },
-    body: JSON.stringify(payload),
-  });
+  const { signal, clear } = createTimeoutSignal(LLM_TIMEOUT_MS);
+  let response: Response;
+  try {
+    response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${apiKey}`,
+        "http-referer": "https://jasos.app",
+        "x-title": "JasoS",
+      },
+      body: JSON.stringify(payload),
+      signal,
+    });
+  } finally {
+    clear();
+  }
 
   if (!response.ok) {
     const errorText = await response.text();

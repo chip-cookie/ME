@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import { neon } from "@neondatabase/serverless";
 import {
@@ -201,17 +201,15 @@ export async function getCaseStudiesByFilters(industry?: string, scope?: string,
   const db = await getDb();
   if (!db) return [];
 
-  let query = db.select().from(caseStudies) as any;
+  const conditions = [
+    industry ? eq(caseStudies.industry, industry) : undefined,
+    scope ? eq(caseStudies.scope, scope) : undefined,
+    impact ? eq(caseStudies.impact, impact) : undefined,
+  ].filter((c): c is NonNullable<typeof c> => c !== undefined);
 
-  if (industry) {
-    query = query.where(eq(caseStudies.industry, industry));
-  }
-  if (scope) {
-    query = query.where(eq(caseStudies.scope, scope));
-  }
-  if (impact) {
-    query = query.where(eq(caseStudies.impact, impact));
-  }
+  const query = conditions.length > 0
+    ? db.select().from(caseStudies).where(and(...conditions))
+    : db.select().from(caseStudies);
 
   return await query.orderBy(caseStudies.order);
 }
@@ -263,11 +261,13 @@ export async function getLeadInquiries() {
   return await db.select().from(leadInquiries).orderBy(leadInquiries.createdAt);
 }
 
-export async function updateLeadInquiryStatus(id: number, status: string) {
+type LeadInquiryStatus = "new" | "contacted" | "qualified" | "proposal" | "closed";
+
+export async function updateLeadInquiryStatus(id: number, status: LeadInquiryStatus) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
 
-  await db.update(leadInquiries).set({ status: status as any }).where(eq(leadInquiries.id, id));
+  await db.update(leadInquiries).set({ status }).where(eq(leadInquiries.id, id));
 }
 
 /**

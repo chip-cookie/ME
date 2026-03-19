@@ -26,6 +26,16 @@ async function getOrSettings(userId: number | undefined) {
   return userId ? await getUserOpenRouterSettings(userId) : null;
 }
 
+/** JSON.parse를 안전하게 실행합니다. 파싱 실패 시 fallback 값을 반환합니다 */
+function safeJsonParse<T>(value: string | null | undefined, fallback: T): T {
+  if (!value) return fallback;
+  try {
+    return JSON.parse(value) as T;
+  } catch {
+    return fallback;
+  }
+}
+
 export const appRouter = router({
   system: systemRouter,
   auth: router({
@@ -224,7 +234,7 @@ export const appRouter = router({
       return await getWritingStyleProfilesByUserId(userId);
     }),
 
-    createStyle: publicProcedure
+    createStyle: protectedProcedure
       .input(z.object({
         name: z.string().min(1),
         trainingText: z.string().min(10),
@@ -269,7 +279,7 @@ export const appRouter = router({
 
           if (collectiveStyle) {
             // Merge with existing patterns
-            const existing = JSON.parse(collectiveStyle.characteristics || '{}');
+            const existing = safeJsonParse<Record<string, any>>(collectiveStyle.characteristics, {});
             const merged = {
               tones: [...new Set([...(existing.tones || []), ...newPatterns.tones])].slice(0, 20),
               sentence_structures: [...new Set([...(existing.sentence_structures || []), ...newPatterns.sentence_structures])].slice(0, 20),
@@ -308,7 +318,7 @@ export const appRouter = router({
         return { success: true, id: (result as any).insertId };
       }),
 
-    deleteStyle: publicProcedure
+    deleteStyle: protectedProcedure
       .input(z.number())
       .mutation(async ({ input }) => {
         const { deleteWritingStyleProfile } = await import("./db");
@@ -336,7 +346,7 @@ export const appRouter = router({
       return await getInterviewStyleProfilesByUserId(userId);
     }),
 
-    createStyle: publicProcedure
+    createStyle: protectedProcedure
       .input(z.object({
         name: z.string().min(1),
         trainingText: z.string().min(10),
@@ -362,7 +372,7 @@ export const appRouter = router({
         return { success: true, id: (result as any).insertId };
       }),
 
-    deleteStyle: publicProcedure
+    deleteStyle: protectedProcedure
       .input(z.number())
       .mutation(async ({ input }) => {
         const { deleteInterviewStyleProfile } = await import("./db");
@@ -424,18 +434,21 @@ export const appRouter = router({
         // Allow access only to user's own corporate analysis
         let corporateContext = undefined;
         if (corpRaw && corpRaw.userId === userId) {
-          corporateContext = typeof corpRaw.analysisResult === 'string' ? JSON.parse(corpRaw.analysisResult) : corpRaw.analysisResult;
+          corporateContext = safeJsonParse<Record<string, any>>(
+            typeof corpRaw.analysisResult === 'string' ? corpRaw.analysisResult : JSON.stringify(corpRaw.analysisResult),
+            null
+          );
           if (corporateContext) corporateContext.companyName = corpRaw.companyName;
         }
 
         // Get collective patterns from admin (format/structure only, no content)
         let collectivePatterns = undefined;
         try {
-          const adminId = getAdminUserId();
+          const adminId = await getAdminUserId();
           const adminStyles = await getWritingStyleProfilesByUserId(adminId);
           const collectiveStyle = adminStyles.find(s => s.name === '_collective_writing_patterns');
           if (collectiveStyle?.characteristics) {
-            collectivePatterns = JSON.parse(collectiveStyle.characteristics);
+            collectivePatterns = safeJsonParse<Record<string, any>>(collectiveStyle.characteristics, undefined);
           }
         } catch (e) {
           // Silently continue without collective patterns
@@ -444,7 +457,7 @@ export const appRouter = router({
         // Generate cover letter with character count constraint and RAG
         const result = await generateCoverLetter({
           prompt: input.prompt,
-          style: styleInfo?.characteristics ? JSON.parse(styleInfo.characteristics) : null,
+          style: safeJsonParse<Record<string, any> | null>(styleInfo?.characteristics ?? null, null),
           trainingText: styleInfo?.trainingText || undefined,
           itemType: input.itemType,
           targetCharCount: input.targetCharCount,
@@ -538,21 +551,22 @@ export const appRouter = router({
         // Allow access only to user's own corporate analysis
         let corporateContext = undefined;
         if (corpRaw && corpRaw.userId === userId) {
-          corporateContext = typeof corpRaw.analysisResult === 'string' ? JSON.parse(corpRaw.analysisResult) : corpRaw.analysisResult;
+          corporateContext = safeJsonParse<Record<string, any>>(
+            typeof corpRaw.analysisResult === 'string' ? corpRaw.analysisResult : JSON.stringify(corpRaw.analysisResult),
+            null
+          );
           if (corporateContext) corporateContext.companyName = corpRaw.companyName;
         }
 
         // Generate interview questions with consulting
         const questions = await generateInterviewQuestionsWithConsulting({
           coverLetterText: text,
-          interviewStyle: interviewStyle?.characteristics ? JSON.parse(interviewStyle.characteristics) : null,
+          interviewStyle: safeJsonParse<Record<string, any> | null>(interviewStyle?.characteristics ?? null, null),
           questionCount: input.questionCount,
           corporateContext,
           openRouterApiKey: orSettings?._rawKey,
           openRouterModel: orSettings?.openRouterModel,
         });
-
-        const userId = ctx.user?.id || 0;
 
         // Save to database
         const questionsToSave = questions.map((q: any) => ({
