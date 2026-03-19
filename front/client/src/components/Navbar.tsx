@@ -30,9 +30,12 @@ export default function Navbar() {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <div className="flex-shrink-0">
-            <a href="/" className="text-2xl font-bold text-accent">
+            <button
+              onClick={() => navigate("/")}
+              className="text-2xl font-bold text-accent bg-transparent border-none cursor-pointer p-0"
+            >
               JasoS
-            </a>
+            </button>
           </div>
 
           {/* Desktop Navigation */}

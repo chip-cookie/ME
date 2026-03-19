@@ -16,7 +16,6 @@ import {
 import { AnalysisUploader } from '@/components/analysis/AnalysisUploader';
 
 export default function CorporateAnalysis() {
-    // Vercel Automatic Deployment Test Comment
     const [companyName, setCompanyName] = useState('');
     const [websiteUrl, setWebsiteUrl] = useState('');
     const [analyzing, setAnalyzing] = useState(false);

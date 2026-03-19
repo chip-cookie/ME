@@ -1,6 +1,8 @@
 import { eq, and } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-http";
-import { neon } from "@neondatabase/serverless";
+import { drizzle } from "drizzle-orm/libsql";
+import { createClient } from "@libsql/client";
+import fs from "fs";
+import path from "path";
 import {
   InsertUser,
   users,
@@ -21,27 +23,234 @@ import {
 import { ENV } from './_core/env';
 import { DEFAULT_OPENROUTER_MODEL } from '../shared/const';
 
-let _db: ReturnType<typeof drizzle> | null = null;
+type DrizzleDb = ReturnType<typeof drizzle>;
+let _db: DrizzleDb | null = null;
 
-// Lazily create the drizzle instance so local tooling can run without a DB.
-export async function getDb() {
-  if (!_db && process.env.DATABASE_URL) {
-    try {
-      const client = neon(process.env.DATABASE_URL);
-      _db = drizzle(client);
-    } catch (error) {
-      console.warn("[Database] Failed to connect:", error);
-      _db = null;
-    }
+/**
+ * sqlite:///./data/db.sqlite  →  file:./data/db.sqlite
+ * sqlite:////abs/path.sqlite  →  file:/abs/path.sqlite
+ * file:./data/db.sqlite       →  그대로 사용
+ * libsql://...                →  그대로 사용 (Turso cloud)
+ */
+function normalizeDbUrl(url: string): string {
+  if (url.startsWith("sqlite:///./")) {
+    return `file:./${url.slice("sqlite:///./".length)}`;
   }
-  return _db;
+  if (url.startsWith("sqlite:////")) {
+    return `file:/${url.slice("sqlite:////".length)}`;
+  }
+  if (url.startsWith("sqlite:///:memory:")) {
+    return ":memory:";
+  }
+  return url;
+}
+
+/** libsql 파일 경로에서 디렉토리를 미리 생성합니다 */
+function ensureDbDir(url: string) {
+  if (url.startsWith("file:")) {
+    const filePath = url.slice("file:".length);
+    const dir = path.dirname(path.resolve(filePath));
+    fs.mkdirSync(dir, { recursive: true });
+  }
+}
+
+// Lazily create the drizzle instance
+export async function getDb(): Promise<DrizzleDb | null> {
+  if (_db) return _db;
+
+  const rawUrl = process.env.DATABASE_URL;
+  if (!rawUrl) {
+    console.warn("[Database] DATABASE_URL is not set. DB features will be disabled.");
+    return null;
+  }
+
+  try {
+    const url = normalizeDbUrl(rawUrl);
+    ensureDbDir(url);
+
+    const client = createClient({ url });
+    _db = drizzle(client);
+
+    // 테이블이 없으면 자동 생성 (SQLite only)
+    await initializeTables(client);
+
+    console.log("[Database] Connected:", url.startsWith("file:") ? url : "(cloud)");
+    return _db;
+  } catch (error) {
+    console.error("[Database] Failed to connect:", error);
+    return null;
+  }
+}
+
+/** SQLite 테이블이 없을 경우 자동으로 생성합니다 (drizzle-kit push 대체) */
+async function initializeTables(client: ReturnType<typeof createClient>) {
+  const ddl = [
+    `CREATE TABLE IF NOT EXISTS users (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      openId TEXT NOT NULL UNIQUE,
+      username TEXT,
+      password TEXT,
+      name TEXT,
+      email TEXT,
+      loginMethod TEXT,
+      role TEXT NOT NULL DEFAULT 'user',
+      openRouterApiKey TEXT,
+      openRouterModel TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp),
+      lastSignedIn TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS services (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      icon TEXT,
+      category TEXT,
+      "order" INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS case_studies (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      industry TEXT,
+      scope TEXT,
+      impact TEXT,
+      clientName TEXT,
+      results TEXT,
+      imageUrl TEXT,
+      featured INTEGER DEFAULT 0,
+      "order" INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS client_results (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      clientName TEXT NOT NULL,
+      metric TEXT NOT NULL,
+      beforeValue TEXT,
+      afterValue TEXT,
+      improvement TEXT,
+      category TEXT,
+      "order" INTEGER DEFAULT 0,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS insights (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      title TEXT NOT NULL,
+      description TEXT,
+      category TEXT,
+      pdfUrl TEXT,
+      featured INTEGER DEFAULT 0,
+      "order" INTEGER DEFAULT 0,
+      publishedAt TEXT DEFAULT (current_timestamp),
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS lead_inquiries (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      companyName TEXT NOT NULL,
+      companySize TEXT,
+      industry TEXT,
+      contactName TEXT NOT NULL,
+      contactEmail TEXT NOT NULL,
+      contactPhone TEXT,
+      projectScope TEXT,
+      projectTimeline TEXT,
+      budgetRange TEXT,
+      challenges TEXT,
+      goals TEXT,
+      status TEXT DEFAULT 'new',
+      notes TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS writing_style_profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      trainingText TEXT,
+      characteristics TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS interview_style_profiles (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      trainingText TEXT,
+      characteristics TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS writing_history (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      styleId INTEGER,
+      itemType TEXT,
+      prompt TEXT NOT NULL,
+      targetCharCount INTEGER,
+      generatedText TEXT NOT NULL,
+      actualCharCount INTEGER,
+      jdKeywords TEXT,
+      jdSummary TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS interview_questions (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      interviewStyleId INTEGER,
+      writingId INTEGER,
+      question TEXT NOT NULL,
+      suggestedAnswer TEXT,
+      answerStrategy TEXT,
+      category TEXT,
+      difficulty TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS experience_logs (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      content TEXT NOT NULL,
+      analysis_result TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS corporate_analysis (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      companyName TEXT NOT NULL,
+      websiteUrl TEXT,
+      analysisResult TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+    `CREATE TABLE IF NOT EXISTS experiences (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      userId INTEGER NOT NULL,
+      title TEXT NOT NULL,
+      category TEXT,
+      content TEXT NOT NULL,
+      analysisType TEXT,
+      analysis TEXT,
+      createdAt TEXT NOT NULL DEFAULT (current_timestamp),
+      updatedAt TEXT NOT NULL DEFAULT (current_timestamp)
+    )`,
+  ];
+
+  for (const stmt of ddl) {
+    await client.execute(stmt);
+  }
 }
 
 // Re-export table types for use in other files
 export {
   services,
   caseStudies,
-  caseStudies as caseStudiesTable, // Backward compat alias if needed
+  caseStudies as caseStudiesTable,
   clientResults,
   insights,
   leadInquiries,
@@ -55,9 +264,7 @@ export {
 } from "../drizzle/schema";
 
 export async function upsertUser(user: InsertUser): Promise<void> {
-  if (!user.openId) {
-    throw new Error("User openId is required for upsert");
-  }
+  if (!user.openId) throw new Error("User openId is required for upsert");
 
   const db = await getDb();
   if (!db) {
@@ -66,9 +273,7 @@ export async function upsertUser(user: InsertUser): Promise<void> {
   }
 
   try {
-    const values: InsertUser = {
-      openId: user.openId,
-    };
+    const values: InsertUser = { openId: user.openId };
     const updateSet: Record<string, unknown> = {};
 
     const textFields = ["name", "email", "loginMethod"] as const;
@@ -77,9 +282,8 @@ export async function upsertUser(user: InsertUser): Promise<void> {
     const assignNullable = (field: TextField) => {
       const value = user[field];
       if (value === undefined) return;
-      const normalized = value ?? null;
-      values[field] = normalized;
-      updateSet[field] = normalized;
+      values[field] = value ?? null;
+      updateSet[field] = value ?? null;
     };
 
     textFields.forEach(assignNullable);
@@ -88,23 +292,18 @@ export async function upsertUser(user: InsertUser): Promise<void> {
       values.lastSignedIn = user.lastSignedIn;
       updateSet.lastSignedIn = user.lastSignedIn;
     }
-    if (user.role !== undefined) {
-      values.role = user.role;
-      updateSet.role = user.role;
-    } else if (user.openId === ENV.ownerOpenId) {
-      values.role = 'admin';
-      updateSet.role = 'admin';
+    const role = user.role ?? (user.openId === ENV.ownerOpenId ? 'admin' : undefined);
+    if (role) {
+      values.role = role;
+      updateSet.role = role;
     }
-
     if (!values.lastSignedIn) {
-      values.lastSignedIn = new Date();
+      values.lastSignedIn = new Date().toISOString() as any;
     }
-
     if (Object.keys(updateSet).length === 0) {
-      updateSet.lastSignedIn = new Date();
+      updateSet.lastSignedIn = new Date().toISOString();
     }
 
-    // Postgres onConflictDoUpdate
     await db.insert(users).values(values).onConflictDoUpdate({
       target: users.openId,
       set: updateSet,
@@ -117,39 +316,24 @@ export async function upsertUser(user: InsertUser): Promise<void> {
 
 export async function getUserByOpenId(openId: string) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.openId, openId)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function getUserById(id: number) {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get user: database not available");
-    return undefined;
-  }
-
+  if (!db) return undefined;
   const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
-
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function getAllUsers() {
   const db = await getDb();
-  if (!db) {
-    console.warn("[Database] Cannot get users: database not available");
-    return [];
-  }
-
+  if (!db) return [];
   return await db.select().from(users);
 }
 
-/** 사용자의 OpenRouter API 키와 선호 모델을 저장합니다 */
 export async function updateUserOpenRouterSettings(
   userId: number,
   settings: { openRouterApiKey?: string | null; openRouterModel?: string | null }
@@ -162,7 +346,6 @@ export async function updateUserOpenRouterSettings(
   }).where(eq(users.id, userId));
 }
 
-/** 사용자의 OpenRouter 설정 반환 (API 키는 마스킹, 서버내부 rawKey 포함) */
 export async function getUserOpenRouterSettings(userId: number) {
   const db = await getDb();
   if (!db) return null;
@@ -179,18 +362,16 @@ export async function getUserOpenRouterSettings(userId: number) {
   };
 }
 
-/**
- * Services queries
- */
+// ─── Services ────────────────────────────────────────────────────────────────
+
 export async function getAllServices() {
   const db = await getDb();
   if (!db) return [];
   return await db.select().from(services).orderBy(services.order);
 }
 
-/**
- * Case Studies queries
- */
+// ─── Case Studies ─────────────────────────────────────────────────────────────
+
 export async function getAllCaseStudies() {
   const db = await getDb();
   if (!db) return [];
@@ -214,9 +395,8 @@ export async function getCaseStudiesByFilters(industry?: string, scope?: string,
   return await query.orderBy(caseStudies.order);
 }
 
-/**
- * Client Results queries
- */
+// ─── Client Results ───────────────────────────────────────────────────────────
+
 export async function getAllClientResults() {
   const db = await getDb();
   if (!db) return [];
@@ -229,9 +409,8 @@ export async function getClientResultsByCategory(category: string) {
   return await db.select().from(clientResults).where(eq(clientResults.category, category)).orderBy(clientResults.order);
 }
 
-/**
- * Insights queries
- */
+// ─── Insights ─────────────────────────────────────────────────────────────────
+
 export async function getAllInsights() {
   const db = await getDb();
   if (!db) return [];
@@ -244,15 +423,12 @@ export async function getFeaturedInsights() {
   return await db.select().from(insights).where(eq(insights.featured, 1)).orderBy(insights.order);
 }
 
-/**
- * Lead Inquiries queries
- */
+// ─── Lead Inquiries ───────────────────────────────────────────────────────────
+
 export async function createLeadInquiry(inquiry: InsertLeadInquiry) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(leadInquiries).values(inquiry);
-  return result;
+  return await db.insert(leadInquiries).values(inquiry);
 }
 
 export async function getLeadInquiries() {
@@ -261,24 +437,18 @@ export async function getLeadInquiries() {
   return await db.select().from(leadInquiries).orderBy(leadInquiries.createdAt);
 }
 
-type LeadInquiryStatus = "new" | "contacted" | "qualified" | "proposal" | "closed";
-
-export async function updateLeadInquiryStatus(id: number, status: LeadInquiryStatus) {
+export async function updateLeadInquiryStatus(id: number, status: "new" | "contacted" | "qualified" | "proposal" | "closed") {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
   await db.update(leadInquiries).set({ status }).where(eq(leadInquiries.id, id));
 }
 
-/**
- * Writing Style Profiles queries
- */
+// ─── Writing Style Profiles ───────────────────────────────────────────────────
+
 export async function createWritingStyleProfile(profile: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(writingStyleProfiles).values(profile);
-  return result;
+  return await db.insert(writingStyleProfiles).values(profile);
 }
 
 export async function getWritingStyleProfilesByUserId(userId: number) {
@@ -291,7 +461,7 @@ export async function getWritingStyleProfileById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(writingStyleProfiles).where(eq(writingStyleProfiles.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function deleteWritingStyleProfile(id: number) {
@@ -306,15 +476,12 @@ export async function updateWritingStyleProfile(id: number, updates: { character
   await db.update(writingStyleProfiles).set(updates).where(eq(writingStyleProfiles.id, id));
 }
 
-/**
- * Interview Style Profiles queries
- */
+// ─── Interview Style Profiles ─────────────────────────────────────────────────
+
 export async function createInterviewStyleProfile(profile: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(interviewStyleProfiles).values(profile);
-  return result;
+  return await db.insert(interviewStyleProfiles).values(profile);
 }
 
 export async function getInterviewStyleProfilesByUserId(userId: number) {
@@ -327,7 +494,7 @@ export async function getInterviewStyleProfileById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(interviewStyleProfiles).where(eq(interviewStyleProfiles.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
 export async function deleteInterviewStyleProfile(id: number) {
@@ -336,15 +503,12 @@ export async function deleteInterviewStyleProfile(id: number) {
   await db.delete(interviewStyleProfiles).where(eq(interviewStyleProfiles.id, id));
 }
 
-/**
- * Writing History queries
- */
+// ─── Writing History ──────────────────────────────────────────────────────────
+
 export async function createWritingHistory(history: any) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(writingHistory).values(history);
-  return result;
+  return await db.insert(writingHistory).values(history);
 }
 
 export async function getWritingHistoryByUserId(userId: number) {
@@ -357,18 +521,15 @@ export async function getWritingHistoryById(id: number) {
   const db = await getDb();
   if (!db) return undefined;
   const result = await db.select().from(writingHistory).where(eq(writingHistory.id, id)).limit(1);
-  return result.length > 0 ? result[0] : undefined;
+  return result[0];
 }
 
-/**
- * Interview Questions queries
- */
+// ─── Interview Questions ──────────────────────────────────────────────────────
+
 export async function createInterviewQuestions(questions: any[]) {
   const db = await getDb();
   if (!db) throw new Error("Database not available");
-
-  const result = await db.insert(interviewQuestions).values(questions);
-  return result;
+  return await db.insert(interviewQuestions).values(questions);
 }
 
 export async function getInterviewQuestionsByUserId(userId: number) {
@@ -383,18 +544,15 @@ export async function getInterviewQuestionsByWritingId(writingId: number) {
   return await db.select().from(interviewQuestions).where(eq(interviewQuestions.writingId, writingId)).orderBy(interviewQuestions.createdAt);
 }
 
-// Experience Logs
+// ─── Experience Logs ──────────────────────────────────────────────────────────
+
 export async function getExperienceLogsByUserId(userId: number) {
   const db = await getDb();
   if (!db) return [];
   return await db.select().from(experienceLogs).where(eq(experienceLogs.userId, userId)).orderBy(experienceLogs.createdAt);
 }
 
-export async function createExperienceLog(data: {
-  userId: number;
-  content: string;
-  analysisResult: string; // JSON string
-}) {
+export async function createExperienceLog(data: { userId: number; content: string; analysisResult: string }) {
   const db = await getDb();
   if (!db) throw new Error("Database not initialized");
   return await db.insert(experienceLogs).values(data);
@@ -406,7 +564,8 @@ export async function deleteExperienceLog(id: number) {
   return await db.delete(experienceLogs).where(eq(experienceLogs.id, id));
 }
 
-// Corporate Analysis
+// ─── Corporate Analysis ───────────────────────────────────────────────────────
+
 export async function getCorporateAnalysisByUserId(userId: number) {
   const db = await getDb();
   if (!db) return [];
@@ -417,7 +576,7 @@ export async function createCorporateAnalysis(data: {
   userId: number;
   companyName: string;
   websiteUrl?: string;
-  analysisResult: string; // JSON string
+  analysisResult: string;
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not initialized");
@@ -434,21 +593,24 @@ export async function getCorporateAnalysisById(id: number) {
   const db = await getDb();
   if (!db) return null;
   const result = await db.select().from(corporateAnalysis).where(eq(corporateAnalysis.id, id));
-  return result[0] || null;
+  return result[0] ?? null;
 }
 
-// Experiences
+// ─── Experiences ──────────────────────────────────────────────────────────────
+
 export async function getExperiencesByUserId(userId: number) {
   const db = await getDb();
   if (!db) return [];
-  return await db.select().from(experiences).where(eq(experiences.userId, userId)).orderBy(experiences.createdAt);
+  const rows = await db.select().from(experiences).where(eq(experiences.userId, userId)).orderBy(experiences.createdAt);
+  return rows.map(r => ({ ...r, analysis: tryParse(r.analysis) }));
 }
 
 export async function getExperienceById(id: number) {
   const db = await getDb();
   if (!db) return null;
   const result = await db.select().from(experiences).where(eq(experiences.id, id));
-  return result[0] || null;
+  if (!result[0]) return null;
+  return { ...result[0], analysis: tryParse(result[0].analysis) };
 }
 
 export async function createExperience(data: {
@@ -461,7 +623,11 @@ export async function createExperience(data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not initialized");
-  return await db.insert(experiences).values(data);
+  const { analysis, ...rest } = data;
+  return await db.insert(experiences).values({
+    ...rest,
+    analysis: analysis ? JSON.stringify(analysis) : null,
+  });
 }
 
 export async function updateExperience(id: number, data: {
@@ -473,11 +639,20 @@ export async function updateExperience(id: number, data: {
 }) {
   const db = await getDb();
   if (!db) throw new Error("Database not initialized");
-  return await db.update(experiences).set(data).where(eq(experiences.id, id));
+  const { analysis, ...rest } = data;
+  return await db.update(experiences).set({
+    ...rest,
+    ...(analysis !== undefined && { analysis: JSON.stringify(analysis) }),
+  }).where(eq(experiences.id, id));
 }
 
 export async function deleteExperience(id: number) {
   const db = await getDb();
   if (!db) throw new Error("Database not initialized");
   return await db.delete(experiences).where(eq(experiences.id, id));
+}
+
+function tryParse(value: unknown): unknown {
+  if (typeof value !== "string") return value;
+  try { return JSON.parse(value); } catch { return value; }
 }

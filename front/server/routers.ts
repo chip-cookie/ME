@@ -45,7 +45,7 @@ function extractCorporateContext(
   const raw = typeof corpRaw.analysisResult === 'string'
     ? corpRaw.analysisResult
     : JSON.stringify(corpRaw.analysisResult);
-  const parsed = safeJsonParse<Record<string, any>>(raw, null);
+  const parsed = safeJsonParse<Record<string, any> | null>(raw, null);
   if (parsed) parsed.companyName = corpRaw.companyName;
   return parsed ?? undefined;
 }
@@ -295,10 +295,10 @@ export const appRouter = router({
             // Merge with existing patterns
             const existing = safeJsonParse<Record<string, any>>(collectiveStyle.characteristics, {});
             const merged = {
-              tones: [...new Set([...(existing.tones || []), ...newPatterns.tones])].slice(0, 20),
-              sentence_structures: [...new Set([...(existing.sentence_structures || []), ...newPatterns.sentence_structures])].slice(0, 20),
-              key_patterns: [...new Set([...(existing.key_patterns || []), ...newPatterns.key_patterns])].slice(0, 50),
-              strengths: [...new Set([...(existing.strengths || []), ...newPatterns.strengths])].slice(0, 50),
+              tones: Array.from(new Set([...(existing.tones || []), ...newPatterns.tones])).slice(0, 20),
+              sentence_structures: Array.from(new Set([...(existing.sentence_structures || []), ...newPatterns.sentence_structures])).slice(0, 20),
+              key_patterns: Array.from(new Set([...(existing.key_patterns || []), ...newPatterns.key_patterns])).slice(0, 50),
+              strengths: Array.from(new Set([...(existing.strengths || []), ...newPatterns.strengths])).slice(0, 50),
               updated_at: new Date().toISOString(),
               contribution_count: (existing.contribution_count || 0) + 1,
             };
@@ -455,7 +455,7 @@ export const appRouter = router({
           const adminStyles = await getWritingStyleProfilesByUserId(adminId);
           const collectiveStyle = adminStyles.find(s => s.name === '_collective_writing_patterns');
           if (collectiveStyle?.characteristics) {
-            collectivePatterns = safeJsonParse<Record<string, any>>(collectiveStyle.characteristics, undefined);
+            collectivePatterns = safeJsonParse<Record<string, any> | undefined>(collectiveStyle.characteristics, undefined);
           }
         } catch (e) {
           // Silently continue without collective patterns
