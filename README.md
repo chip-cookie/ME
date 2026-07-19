@@ -60,12 +60,14 @@ graph TD
 
 ## 🔥 주요 AI 파이프라인 (Core AI Technologies)
 
-기존의 뻔한 취업 서비스들과 차별화되는 ME 프로젝트만의 2가지 핵심 인공지능 기술입니다.
+기존의 뻔한 취업 서비스들과 차별화되는 ME 프로젝트만의 3가지 핵심 인공지능 기술입니다.
 
 * 📝 **DocMaster Gleaning Loop (자기강화 평가)**
   단순히 글을 써주는 것을 넘어, **LLM-as-a-Judge** 모델이 5가지 척도(구조, 구체성, 표현력 등)로 자소서를 스스로 평가합니다. 합격 기준 점수를 넘길 때까지 스스로 문단을 쪼개고 다듬는(Gleaning) 끈질긴 재작성 루프를 자랑합니다.
 * 🕸️ **공시 데이터 RAG (팩트 기반)**
   환각(Hallucination)을 막기 위해 낡은 인터넷 검색 대신, 금융감독원(DART) 재무제표와 국민연금(NPS) 데이터를 직접 벡터화(ChromaDB)합니다. 이를 통해 매우 현실적이고 날카로운 면접 답변과 기업 분석을 도출해냅니다.
+* 🧠 **경험 감성 분석 (STAR 기법 자동화)**
+  사용자가 의식의 흐름대로 경험을 적으면, AI가 즉시 **STAR(상황/과제/행동/결과)** 구조로 요약하고 리더십, 창의성 등 5대 직무 성향을 수치화된 그래프로 분석해 줍니다.
 
 ---
 
@@ -73,9 +75,10 @@ graph TD
 
 | 디렉토리 | 담당 역할 | 주요 기술 |
 |---|---|---|
-| 📂 **`front/`** | 사용자 통합 웹 인터페이스 (BFF 포함) | React 19, tRPC, Drizzle |
+| 📂 **`front/`** | 웹 인터페이스 (BFF, STAR 경험 분석, 블로그) | React 19, tRPC, Drizzle |
 | 📂 **`app/`** | JasoS 메인 백엔드 & AI 에이전트 | FastAPI, Python |
 | 📂 **`docmaster/`** | 자소서 5개 척도 평가 & 자기강화 개선 AI | PostgreSQL, vLLM, SFT |
+| 📂 **`RAG/`** | 재무 문서 챗봇 및 뉴스 요약 봇 | Streamlit, FAISS, HTML |
 | 📂 **`front-svelte/`** | 향후 SaaS 확장을 위한 Svelte 버전 | Svelte 5, MySQL |
 
 ---
