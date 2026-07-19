@@ -59,3 +59,11 @@ class ExplicitRuleResponse(BaseModel):
     
     class Config:
         from_attributes = True
+
+class NLPAnalyzeRequest(BaseModel):
+    text: str
+
+class NLPAnalyzeResponse(BaseModel):
+    ending_suffixes: list[str]
+    frequent_chunks: list[str]
+    nlp_status: str

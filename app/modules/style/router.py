@@ -9,8 +9,9 @@ from app.core.database import get_db
 from app.modules.style.service import StyleService
 from app.modules.style.schemas import (
     StyleProfileCreate, StyleProfileUpdate, StyleProfileResponse,
-    ExplicitRuleCreate, ExplicitRuleResponse
+    ExplicitRuleCreate, ExplicitRuleResponse, NLPAnalyzeRequest, NLPAnalyzeResponse
 )
+from app.modules.style.nlp_service import analyze_morphology
 
 router = APIRouter(prefix="/api/styles", tags=["styles"])
 
@@ -75,3 +76,8 @@ def deactivate_rule(rule_id: int, db: Session = Depends(get_db)):
     if not service.deactivate_rule(rule_id):
         raise HTTPException(status_code=404, detail="규칙을 찾을 수 없습니다")
     return {"message": "규칙이 비활성화되었습니다"}
+
+@router.post("/nlp-analyze", response_model=NLPAnalyzeResponse)
+def analyze_style_nlp(data: NLPAnalyzeRequest):
+    """Analyze text morphology using Kiwi (Ending suffixes, Frequent chunks)"""
+    return analyze_morphology(data.text)

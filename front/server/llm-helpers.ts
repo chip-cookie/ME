@@ -28,6 +28,8 @@ export async function analyzeWritingStyle(text: string, openRouterApiKey?: strin
   "tone": "어조",
   "vocabulary_level": "어휘 수준",
   "sentence_structure": "문장 구조",
+  "ending_suffixes": ["-습니다", "-함"],
+  "frequent_chunks": ["어휘 조합1", "어휘 조합2"],
   "key_patterns": ["패턴1", "패턴2"],
   "strengths": ["강점1", "강점2"]
 }`
@@ -43,14 +45,16 @@ export async function analyzeWritingStyle(text: string, openRouterApiKey?: strin
         schema: {
             type: "object",
             properties: {
-                suggested_name: { type: "string", description: "스타일의 특징을 잘 나타내는 이름" },
+                suggested_name: { type: "string", description: "문체 특징을 잘 나타내는 이름" },
                 tone: { type: "string", description: "어조" },
                 vocabulary_level: { type: "string", description: "어휘 수준" },
                 sentence_structure: { type: "string", description: "문장 구조 특징" },
-                key_patterns: { type: "array", items: { type: "string" }, description: "주요 표현 패턴" },
+                ending_suffixes: { type: "array", items: { type: "string" }, description: "자주 쓰는 종결 어미 패턴 (-습니다, -요, -음/함 등)" },
+                frequent_chunks: { type: "array", items: { type: "string" }, description: "자주 같이 쓰는 2~3 단어 조합 (청크)" },
+                key_patterns: { type: "array", items: { type: "string" }, description: "주로 쓰는 표현 패턴" },
                 strengths: { type: "array", items: { type: "string" }, description: "강점" },
             },
-            required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "key_patterns", "strengths"]
+            required: ["suggested_name", "tone", "vocabulary_level", "sentence_structure", "ending_suffixes", "frequent_chunks", "key_patterns", "strengths"]
         }
     };
 

@@ -261,6 +261,31 @@ export const appRouter = router({
 
         // Analyze style using LLM
         const characteristics = await analyzeWritingStyle(input.trainingText, orSettings?._rawKey, orSettings?.openRouterModel);
+        
+        // Analyze morphology using Python NLP (Kiwi)
+        let nlpStats = { ending_suffixes: [], frequent_chunks: [], nlp_status: "not_called" };
+        try {
+            const pyApiUrl = process.env.PYTHON_API_URL || "http://localhost:8000";
+            const nlpRes = await fetch(`${pyApiUrl}/api/styles/nlp-analyze`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text: input.trainingText })
+            });
+            if (nlpRes.ok) {
+                nlpStats = await nlpRes.json();
+            }
+        } catch (e) {
+            console.error("NLP analysis failed:", e);
+        }
+        
+        // Merge NLP stats with LLM characteristics
+        const mergedCharacteristics = {
+            ...characteristics,
+            ending_suffixes_nlp: nlpStats.ending_suffixes,
+            frequent_chunks_nlp: nlpStats.frequent_chunks,
+            nlp_status: nlpStats.nlp_status
+        };
+
         const userId = ctx.user?.id || 0;
 
         const result = await createWritingStyleProfile({
@@ -268,7 +293,7 @@ export const appRouter = router({
           name: input.name,
           description: input.description,
           trainingText: input.trainingText,
-          characteristics: JSON.stringify(characteristics),
+          characteristics: JSON.stringify(mergedCharacteristics),
         });
 
         // --- Collective Intelligence: Aggregate style PATTERNS only (no content) ---
@@ -289,6 +314,8 @@ export const appRouter = router({
             sentence_structures: [characteristics.sentence_structure],
             key_patterns: characteristics.key_patterns || [],
             strengths: characteristics.strengths || [],
+            ending_suffixes: mergedCharacteristics.ending_suffixes_nlp || characteristics.ending_suffixes || [],
+            frequent_chunks: mergedCharacteristics.frequent_chunks_nlp || characteristics.frequent_chunks || [],
           };
 
           if (collectiveStyle) {
