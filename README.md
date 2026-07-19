@@ -42,12 +42,13 @@
 
 ```mermaid
 graph TD
-    User([👨‍💻 취준생]) -->|1. JD 분석 요청| Web[💻 JasoS Web<br/>React / Svelte]
-    User -->|2. 자소서 작성| Web
-    User -->|3. 이력서 업로드| Port[✨ PDF→Portfolio]
+    User([👨‍💻 취준생]) -->|1. 기존 자소서 업로드| Style[📝 나만의 문체 학습<br/>'내 말투' 프로파일링]
+    User -->|2. 채용공고 분석 요청| Web[💻 JasoS Web<br/>React / Svelte]
+    User -->|3. 이력서 PDF 업로드| Port[✨ 포트폴리오 자동 배포]
     
-    Web --> API[⚙️ BFF & API<br/>Node.js + Python]
-    API -->|공시 데이터| DART[(DART & NPS)]
+    Style -->|스타일 데이터 적용| Web
+    Web -->|'내 말투' 기반 자소서 작성| API[⚙️ BFF & API<br/>Node.js + Python]
+    API -->|공시 데이터 결합| DART[(DART & NPS)]
     
     API <--> AI[🧠 DocMaster AI<br/>Local vLLM / Ollama]
     AI -->|Gleaning Loop<br/>평가 및 재작성| AI
