@@ -59,3 +59,18 @@ async def upload_company_analysis(
     raw_data = await parser.parse_file(file)
     summary = await service.summarize_uploaded_data(company_name, raw_data)
     return {"status": "success", "filename": file.filename, "summary": summary}
+
+
+@router.get("/corporate-info/{company_name}")
+def get_corporate_info(company_name: str, db: Session = Depends(get_db)):
+    """특정 기업의 DART 재무제표 및 NPS 퇴사율 정보를 실시간으로 조회합니다."""
+    service = AnalysisService(db)
+    
+    dart_info = service.dart_service.fetch_company_summary(company_name)
+    nps_info = service.nps_service.fetch_company_data(company_name)
+    
+    return {
+        "company_name": company_name,
+        "dart_data": dart_info,
+        "nps_data": nps_info
+    }
